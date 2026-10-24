@@ -207,11 +207,17 @@ class TVFeedGenerator {
         this.noiseImgData = this.noiseCtx.createImageData(320, 240);
         this.noise32 = new Uint32Array(this.noiseImgData.data.buffer);
 
-        // Bouncing box for No Signal
+        // No Signal alternating images (aquanet-nosignal-1.png / aquanet-nosignal-2.png)
+        this.noSignalImg1 = new Image();
+        this.noSignalImg1.src = 'icons/aquanet-nosignal-1.png';
+        this.noSignalImg2 = new Image();
+        this.noSignalImg2.src = 'icons/aquanet-nosignal-2.png';
+
+        // Bouncing state for No Signal
         this.bounceBox = {
-            x: 100, y: 100,
+            x: 80, y: 60,
             vx: 1.8, vy: 1.4,
-            w: 360, h: 140
+            w: 360, h: 266
         };
 
         // Aquarium fishes
@@ -412,82 +418,33 @@ class TVFeedGenerator {
             ctx.fillRect(0, Math.random() * h, w, Math.random() * 20 + 5);
         }
 
-        // Bouncing "SEM SINAL / BUSCANDO SINAL" OSD Dialog Box
-        const bb = this.bounceBox;
-        bb.x += bb.vx;
-        bb.y += bb.vy;
+        // Alternating No Signal Images (swapping every 1 second) bouncing across screen
+        const isFrame1 = (Math.floor(Date.now() / 1000) % 2 === 0);
+        const currentImg = isFrame1 ? this.noSignalImg1 : this.noSignalImg2;
 
-        if (bb.x <= 15) { bb.x = 15; bb.vx = Math.abs(bb.vx); }
-        if (bb.x + bb.w >= w - 15) { bb.x = w - 15 - bb.w; bb.vx = -Math.abs(bb.vx); }
-        if (bb.y <= 15) { bb.y = 15; bb.vy = Math.abs(bb.vy); }
-        if (bb.y + bb.h >= h - 15) { bb.y = h - 15 - bb.h; bb.vy = -Math.abs(bb.vy); }
+        if (currentImg && currentImg.complete && currentImg.naturalWidth > 0) {
+            const aspect = currentImg.naturalHeight / currentImg.naturalWidth;
+            const bb = this.bounceBox;
+            bb.w = Math.min(360, Math.max(160, w * 0.42));
+            bb.h = bb.w * aspect;
 
-        ctx.save();
-        // Box drop shadow
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-        ctx.shadowBlur = 18;
-        ctx.shadowOffsetX = 4;
-        ctx.shadowOffsetY = 6;
+            bb.x += bb.vx;
+            bb.y += bb.vy;
 
-        // Frutiger Aero Glossy Navy/Steel box
-        const boxGrad = ctx.createLinearGradient(bb.x, bb.y, bb.x, bb.y + bb.h);
-        boxGrad.addColorStop(0, '#0f3885');
-        boxGrad.addColorStop(0.48, '#0b265c');
-        boxGrad.addColorStop(0.5, '#05183e');
-        boxGrad.addColorStop(1, '#072460');
-        ctx.fillStyle = boxGrad;
-        
-        // Rounded rectangle with fallback
-        const r = 10;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(bb.x, bb.y, bb.w, bb.h, r);
-        } else {
-            ctx.rect(bb.x, bb.y, bb.w, bb.h);
+            if (bb.x <= 15) { bb.x = 15; bb.vx = Math.abs(bb.vx); }
+            if (bb.x + bb.w >= w - 15) { bb.x = w - 15 - bb.w; bb.vx = -Math.abs(bb.vx); }
+            if (bb.y <= 15) { bb.y = 15; bb.vy = Math.abs(bb.vy); }
+            if (bb.y + bb.h >= h - 15) { bb.y = h - 15 - bb.h; bb.vy = -Math.abs(bb.vy); }
+
+            ctx.save();
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+            ctx.shadowBlur = 14;
+            ctx.shadowOffsetX = 3;
+            ctx.shadowOffsetY = 5;
+
+            ctx.drawImage(currentImg, bb.x, bb.y, bb.w, bb.h);
+            ctx.restore();
         }
-        ctx.fill();
-
-        // Chrome/glass border
-        ctx.shadowColor = 'transparent';
-        ctx.strokeStyle = '#4a90e2';
-        ctx.lineWidth = 2.5;
-        ctx.stroke();
-
-        // Top glossy specular highlight
-        const glossGrad = ctx.createLinearGradient(bb.x, bb.y, bb.x, bb.y + bb.h * 0.45);
-        glossGrad.addColorStop(0, 'rgba(255, 255, 255, 0.45)');
-        glossGrad.addColorStop(1, 'rgba(255, 255, 255, 0.02)');
-        ctx.fillStyle = glossGrad;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(bb.x + 2, bb.y + 2, bb.w - 4, bb.h * 0.45, [8, 8, 0, 0]);
-        } else {
-            ctx.rect(bb.x + 2, bb.y + 2, bb.w - 4, bb.h * 0.45);
-        }
-        ctx.fill();
-
-        // Satellite Dish Icon in box
-        ctx.fillStyle = '#ffcc00';
-        ctx.font = 'bold 15px "Segoe UI", Arial, sans-serif';
-        ctx.fillText('📡  SEM SINAL DO SATÉLITE (771)', bb.x + 20, bb.y + 36);
-
-        // Warning text
-        ctx.font = '12px "Segoe UI", Arial, sans-serif';
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText('Buscando sinal no transponder 01...', bb.x + 20, bb.y + 65);
-        ctx.fillStyle = '#b7d4f8';
-        ctx.fillText('Verifique se há obstáculos (chuva, galhos)', bb.x + 20, bb.y + 88);
-        ctx.fillText('ou aguarde a normalização da transmissão.', bb.x + 20, bb.y + 108);
-
-        // Subtle flashing red dot
-        if ((this.frame % 40) < 20) {
-            ctx.fillStyle = '#ff3b30';
-            ctx.beginPath();
-            ctx.arc(bb.x + bb.w - 25, bb.y + 30, 6, 0, Math.PI * 2);
-            ctx.fill();
-        }
-
-        ctx.restore();
     }
 
     /**

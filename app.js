@@ -594,11 +594,19 @@ class RetroTVController {
         const volIcon = document.getElementById('vol-icon');
         if (this.isMuted || pct === 0) {
             this.volText.innerText = "MUTE";
-            volIcon.innerText = "🔇";
+            if (volIcon) volIcon.src = "icons/volume-zero.png";
             this.volBarFill.style.width = '0%';
         } else {
             this.volText.innerText = `VOL ${pct}%`;
-            volIcon.innerText = pct > 50 ? "🔊" : "🔉";
+            if (volIcon) {
+                if (pct <= 33) {
+                    volIcon.src = "icons/volume-min.png";
+                } else if (pct <= 66) {
+                    volIcon.src = "icons/volume-med.png";
+                } else {
+                    volIcon.src = "icons/volume-max.png";
+                }
+            }
         }
 
         this.osdVolumeBox.classList.remove('hidden');
@@ -737,8 +745,22 @@ class RetroTVController {
      * Bind 2000s Satellite Remote Control Panel
      */
     bindRemote() {
+        // Preload power-pressed image
+        const preloadPowerPressed = new Image();
+        preloadPowerPressed.src = 'icons/power-pressed.png';
+
         // Power & Mute
-        document.getElementById('rc-power').addEventListener('click', () => this.togglePower());
+        const rcPowerBtn = document.getElementById('rc-power');
+        const rcPowerImg = document.getElementById('rc-power-img');
+        rcPowerBtn.addEventListener('click', () => {
+            if (rcPowerImg) {
+                rcPowerImg.src = 'icons/power-pressed.png';
+                setTimeout(() => {
+                    rcPowerImg.src = 'icons/power-unpressed.png';
+                }, 180);
+            }
+            this.togglePower();
+        });
         document.getElementById('rc-mute').addEventListener('click', () => this.toggleMute());
 
         // Function Row
