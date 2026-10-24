@@ -95,7 +95,7 @@ class RetroTVController {
     }
 
     /**
-     * Draggable remote control for desktop pairing
+     * Smooth 1:1 Draggable remote control pinned accurately under the cursor
      */
     makeRemoteDraggable() {
         const header = document.getElementById('remote-header');
@@ -103,35 +103,55 @@ class RetroTVController {
         if (!header || !remote) return;
 
         let isDragging = false;
-        let startX, startY, initialLeft, initialTop;
+        let grabOffsetX = 0;
+        let grabOffsetY = 0;
 
         header.addEventListener('mousedown', (e) => {
             if (e.target.id === 'btn-minimize-remote') return;
             isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
             const rect = remote.getBoundingClientRect();
-            initialLeft = rect.left;
-            initialTop = rect.top;
+            grabOffsetX = e.clientX - rect.left;
+            grabOffsetY = e.clientY - rect.top;
 
             remote.style.right = 'auto';
             remote.style.bottom = 'auto';
-            remote.style.left = `${initialLeft}px`;
-            remote.style.top = `${initialTop}px`;
+            remote.style.left = `${rect.left}px`;
+            remote.style.top = `${rect.top}px`;
             document.body.style.userSelect = 'none';
         });
 
         window.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-            remote.style.left = `${Math.max(10, Math.min(window.innerWidth - remote.offsetWidth - 10, initialLeft + dx))}px`;
-            remote.style.top = `${Math.max(10, Math.min(window.innerHeight - remote.offsetHeight - 10, initialTop + dy))}px`;
+            const newLeft = e.clientX - grabOffsetX;
+            const newTop = e.clientY - grabOffsetY;
+            const maxLeft = Math.max(0, window.innerWidth - remote.offsetWidth - 10);
+            const maxTop = Math.max(0, window.innerHeight - remote.offsetHeight - 10);
+
+            remote.style.left = `${Math.max(10, Math.min(maxLeft, newLeft))}px`;
+            remote.style.top = `${Math.max(10, Math.min(maxTop, newTop))}px`;
         });
 
-        window.addEventListener('mouseup', () => {
-            isDragging = false;
-            document.body.style.userSelect = '';
+        const stopDragging = () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.userSelect = '';
+            }
+        };
+
+        window.addEventListener('mouseup', stopDragging);
+        window.addEventListener('mouseleave', stopDragging);
+
+        window.addEventListener('resize', () => {
+            if (remote.style.left && remote.style.left !== 'auto') {
+                const maxLeft = Math.max(10, window.innerWidth - remote.offsetWidth - 10);
+                const maxTop = Math.max(10, window.innerHeight - remote.offsetHeight - 10);
+                const currentLeft = parseFloat(remote.style.left) || 0;
+                const currentTop = parseFloat(remote.style.top) || 0;
+                if (currentLeft > maxLeft || currentTop > maxTop) {
+                    remote.style.left = `${Math.min(currentLeft, maxLeft)}px`;
+                    remote.style.top = `${Math.min(currentTop, maxTop)}px`;
+                }
+            }
         });
     }
 

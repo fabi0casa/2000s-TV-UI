@@ -57,18 +57,15 @@ html, body {
     overflow: hidden;
 }
 
-/* TV Bezel / Chassis (Optional widescreen CRT/LCD frame) */
+/* TV Screen Container (True Fullscreen Responsive on all displays and zoom levels) */
 .tv-screen-wrapper {
     position: relative;
     width: 100%;
     height: 100%;
-    max-width: 1920px;
-    max-height: 1080px;
-    aspect-ratio: 16 / 9;
     background-color: #000000;
     overflow: hidden;
     display: flex;
-    box-shadow: 0 0 50px rgba(0, 0, 0, 0.9), inset 0 0 10px rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 10px rgba(255, 255, 255, 0.1);
 }
 
 /* TV Screen Canvas & Media Feeds */
@@ -876,21 +873,21 @@ html, body {
     position: fixed;
     right: 20px;
     bottom: 20px;
-    width: 280px;
+    width: 250px;
     background: linear-gradient(180deg, #1b283d 0%, #0d1522 50%, #080d17 100%);
-    border-radius: 28px;
+    border-radius: 24px;
     border: 3px solid #2e4466;
     box-shadow: 0 16px 45px rgba(0, 0, 0, 0.9), inset 0 2px 3px rgba(255, 255, 255, 0.35);
-    padding: 22px 18px;
+    padding: 14px 14px;
     z-index: 50;
     display: flex;
     flex-direction: column;
-    gap: 14px;
-    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+    gap: 10px;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
 }
 
 .remote-control-panel.collapsed {
-    transform: translateY(calc(100% - 48px));
+    transform: translateY(calc(100% - 44px));
 }
 
 .remote-drag-bar {
@@ -976,17 +973,17 @@ html, body {
 .remote-fn-row {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
+    gap: 6px;
 }
 
 .btn-remote-pill {
-    height: 36px;
-    border-radius: 12px;
+    height: 32px;
+    border-radius: 10px;
     background: linear-gradient(180deg, #3d5170 0%, #202d40 100%);
     border: 1.5px solid #577399;
     box-shadow: 0 3px 5px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4);
     color: #e2eeff;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 700;
     cursor: pointer;
     display: flex;
@@ -1001,9 +998,9 @@ html, body {
 
 /* D-PAD (Directional Cross with Center Select) */
 .remote-dpad-container {
-    width: 160px;
-    height: 160px;
-    margin: 4px auto;
+    width: 140px;
+    height: 140px;
+    margin: 2px auto;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #3a4b64 0%, #1c2636 75%, #0f1520 100%);
     box-shadow: 0 6px 14px rgba(0, 0, 0, 0.7), inset 0 2px 2px rgba(255, 255, 255, 0.4);
@@ -1019,10 +1016,10 @@ html, body {
     background: none;
     border: none;
     color: #cfdfee;
-    font-size: 18px;
+    font-size: 16px;
     cursor: pointer;
-    width: 44px;
-    height: 44px;
+    width: 38px;
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1033,25 +1030,27 @@ html, body {
     color: #ffbe38;
 }
 
-.dpad-up    { top: 4px; left: 58px; }
-.dpad-down  { bottom: 4px; left: 58px; }
-.dpad-left  { left: 4px; top: 58px; }
-.dpad-right { right: 4px; top: 58px; }
+.dpad-up    { top: 2px; left: 50%; transform: translateX(-50%); }
+.dpad-down  { bottom: 2px; left: 50%; transform: translateX(-50%); }
+.dpad-left  { left: 2px; top: 50%; transform: translateY(-50%); }
+.dpad-right { right: 2px; top: 50%; transform: translateY(-50%); }
 
 .dpad-center-ok {
-    width: 60px;
-    height: 60px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #4f698d 0%, #253549 60%, #151e2b 100%);
     border: 2px solid #6b8db7;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.6), inset 0 2px 2px rgba(255, 255, 255, 0.5);
     color: #ffffff;
     font-weight: 800;
-    font-size: 15px;
+    font-size: 14px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
+    z-index: 2;
 }
 
 .dpad-center-ok:active {
@@ -1084,13 +1083,13 @@ html, body {
 }
 
 .btn-rocker {
-    width: 48px;
-    height: 38px;
+    width: 44px;
+    height: 34px;
     border-radius: 10px;
     background: linear-gradient(180deg, #374b67 0%, #202e42 100%);
     border: 1px solid #4f698d;
     color: #ffffff;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 800;
     cursor: pointer;
 }
@@ -1110,8 +1109,8 @@ html, body {
 }
 
 .btn-remote-color {
-    height: 28px;
-    width: 28px;
+    height: 26px;
+    width: 26px;
     border-radius: 50%;
     margin: 0 auto;
     border: none;
@@ -1133,18 +1132,18 @@ html, body {
 .remote-numpad-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    gap: 6px;
 }
 
 .btn-num {
-    height: 36px;
-    border-radius: 10px;
+    height: 32px;
+    border-radius: 8px;
     background: linear-gradient(180deg, #2c3a4f 0%, #161e2a 100%);
     border: 1px solid #415570;
     box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.3);
     color: #ffffff;
     font-family: var(--osd-num-font);
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
     cursor: pointer;
 }
@@ -1152,6 +1151,48 @@ html, body {
 .btn-num:active {
     background: #0f151f;
     transform: scale(0.95);
+}
+
+/* Proportional scaling for smaller screens and browser zoom levels */
+@media (max-height: 720px) and (min-width: 769px) {
+    .remote-control-panel {
+        width: 224px;
+        padding: 10px 11px;
+        gap: 7px;
+        border-radius: 18px;
+    }
+    .remote-brand-text { font-size: 12px; }
+    .btn-remote-power { width: 34px; height: 34px; }
+    .btn-remote-pill { height: 26px; font-size: 10px; }
+    .remote-dpad-container { width: 115px; height: 115px; margin: 1px auto; }
+    .dpad-center-ok { width: 42px; height: 42px; font-size: 12px; }
+    .dpad-btn { width: 32px; height: 32px; font-size: 14px; }
+    .rocker-box { padding: 2px; }
+    .btn-rocker { width: 38px; height: 28px; font-size: 13px; }
+    .rocker-label { font-size: 9px; margin: 1px 0; }
+    .btn-remote-color { width: 22px; height: 22px; }
+    .btn-num { height: 26px; font-size: 14px; border-radius: 7px; }
+    .remote-numpad-grid { gap: 5px; }
+}
+
+@media (max-height: 540px) and (min-width: 769px) {
+    .remote-control-panel {
+        width: 198px;
+        padding: 7px 9px;
+        gap: 4px;
+        border-radius: 15px;
+    }
+    .remote-brand-text { font-size: 11px; }
+    .btn-remote-power { width: 28px; height: 28px; }
+    .btn-remote-pill { height: 22px; font-size: 9px; }
+    .remote-dpad-container { width: 95px; height: 95px; }
+    .dpad-center-ok { width: 36px; height: 36px; font-size: 10px; }
+    .dpad-btn { width: 26px; height: 26px; font-size: 11px; }
+    .btn-rocker { width: 32px; height: 22px; font-size: 11px; }
+    .rocker-label { font-size: 8px; margin: 0; }
+    .btn-remote-color { width: 18px; height: 18px; }
+    .btn-num { height: 22px; font-size: 12px; border-radius: 5px; }
+    .remote-numpad-grid { gap: 4px; }
 }
 
 /* Floating Remote Toggle Button (when remote is collapsed on desktop / mobile) */
@@ -1376,6 +1417,9 @@ html, body {
         padding: 16px 14px;
         border-radius: 20px;
         z-index: 40;
+        transform: none !important;
+        max-height: none;
+        overflow-y: visible;
     }
 
     .floating-remote-launcher {

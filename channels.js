@@ -240,6 +240,11 @@ class TVFeedGenerator {
         // Resize observer
         this.resize();
         window.addEventListener('resize', () => this.resize());
+        if (typeof ResizeObserver !== 'undefined') {
+            try {
+                new ResizeObserver(() => this.resize()).observe(this.canvas);
+            } catch(e) {}
+        }
     }
 
     resize() {
