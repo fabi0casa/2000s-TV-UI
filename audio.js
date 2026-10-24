@@ -11,6 +11,7 @@ class RetroTVAudio {
     constructor() {
         this.ctx = null;
         this.isMuted = false;
+        this.isSFXMuted = false;
         this.volume = 0.7;
 
         // Static noise nodes
@@ -28,6 +29,11 @@ class RetroTVAudio {
         if (this.ctx.state === 'suspended') {
             this.ctx.resume();
         }
+    }
+
+    toggleSFXMute() {
+        this.isSFXMuted = !this.isSFXMuted;
+        return this.isSFXMuted;
     }
 
     setMute(mute) {
@@ -48,7 +54,7 @@ class RetroTVAudio {
      * Set-top box gentle high-tech beep when pressing arrows/navigating
      */
     playBeep(type = 'nav') {
-        if (this.isMuted) return;
+        if (this.isMuted || this.isSFXMuted) return;
 
         const sounds = {
             nav: 'sfx/conected.mp3',
@@ -81,7 +87,7 @@ class RetroTVAudio {
      * TV Channel Switch click / CRT tuner pop
      */
     playChannelSwitch() {
-        if (this.isMuted) return;
+        if (this.isMuted || this.isSFXMuted) return;
 
         if (!this.channelSwitchAudio) {
             this.channelSwitchAudio = new Audio(

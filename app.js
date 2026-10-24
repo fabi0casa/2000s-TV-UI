@@ -641,6 +641,35 @@ class RetroTVController {
     }
 
     /**
+     * Alternar Mudo dos Efeitos Sonoros da Interface (SFX)
+     */
+    toggleSFXMute() {
+        const isMuted = window.retroAudio.toggleSFXMute();
+        const hintText = document.getElementById('hint-sfx-text');
+        if (hintText) {
+            hintText.innerText = isMuted ? "SFX: Mudo" : "Mutar SFX";
+        }
+        if (!isMuted) {
+            window.retroAudio.playBeep('select');
+        }
+    }
+
+    /**
+     * Sintonizar canal de número aleatório (Botão Azul)
+     */
+    tuneRandomChannel() {
+        if (!this.isPowerOn || !this.channels || this.channels.length === 0) return;
+        let randomIndex = this.currentChannelIndex;
+        if (this.channels.length > 1) {
+            while (randomIndex === this.currentChannelIndex) {
+                randomIndex = Math.floor(Math.random() * this.channels.length);
+            }
+        }
+        window.retroAudio.playBeep('select');
+        this.tuneChannelByIndex(randomIndex, true);
+    }
+
+    /**
      * Power Toggle (Ligar / Desligar TV)
      */
     togglePower() {
@@ -735,7 +764,11 @@ class RetroTVController {
                     break;
                 case 'x':
                 case 'X':
-                    this.triggerSemSinal();
+                    this.toggleSFXMute();
+                    break;
+                case 'r':
+                case 'R':
+                    this.tuneRandomChannel();
                     break;
             }
         });
@@ -810,10 +843,10 @@ class RetroTVController {
         document.getElementById('rc-ch-down').addEventListener('click', () => this.channelDown());
 
         // 4 Color Buttons
-        document.getElementById('rc-red').addEventListener('click', () => this.triggerSemSinal());
+        document.getElementById('rc-red').addEventListener('click', () => this.toggleSFXMute());
         document.getElementById('rc-green').addEventListener('click', () => this.toggleCRT());
         document.getElementById('rc-yellow').addEventListener('click', () => this.openCustomStreamModal());
-        document.getElementById('rc-blue').addEventListener('click', () => this.toggleMiniGuide());
+        document.getElementById('rc-blue').addEventListener('click', () => this.tuneRandomChannel());
 
         // Numeric Keypad
         document.querySelectorAll('.btn-num[data-num]').forEach(btn => {
@@ -851,10 +884,10 @@ class RetroTVController {
      */
     bindOSDInteractions() {
         // Banner hints
-        document.getElementById('hint-red-signal').addEventListener('click', () => this.triggerSemSinal());
+        document.getElementById('hint-red-signal').addEventListener('click', () => this.toggleSFXMute());
         document.getElementById('hint-green-crt').addEventListener('click', () => this.toggleCRT());
         document.getElementById('hint-options').addEventListener('click', () => this.openCustomStreamModal());
-        document.getElementById('hint-mini-guide').addEventListener('click', () => this.toggleMiniGuide());
+        document.getElementById('hint-mini-guide').addEventListener('click', () => this.tuneRandomChannel());
         document.getElementById('btn-banner-settings').addEventListener('click', () => this.openCustomStreamModal());
 
         // EPG Guide Hints
