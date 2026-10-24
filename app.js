@@ -752,13 +752,20 @@ class RetroTVController {
         // Power & Mute
         const rcPowerBtn = document.getElementById('rc-power');
         const rcPowerImg = document.getElementById('rc-power-img');
+
+        const setPowerPressed = () => {
+            if (rcPowerImg) rcPowerImg.src = 'icons/power-pressed.png';
+        };
+        const setPowerUnpressed = () => {
+            if (rcPowerImg) rcPowerImg.src = 'icons/power-unpressed.png';
+        };
+
+        rcPowerBtn.addEventListener('pointerdown', setPowerPressed);
+        rcPowerBtn.addEventListener('pointerup', setPowerUnpressed);
+        rcPowerBtn.addEventListener('pointercancel', setPowerUnpressed);
+        rcPowerBtn.addEventListener('pointerleave', setPowerUnpressed);
+
         rcPowerBtn.addEventListener('click', () => {
-            if (rcPowerImg) {
-                rcPowerImg.src = 'icons/power-pressed.png';
-                setTimeout(() => {
-                    rcPowerImg.src = 'icons/power-unpressed.png';
-                }, 180);
-            }
             this.togglePower();
         });
         document.getElementById('rc-mute').addEventListener('click', () => this.toggleMute());

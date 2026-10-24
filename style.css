@@ -949,10 +949,6 @@ html, body {
     user-select: none;
 }
 
-.btn-remote-power:active {
-    transform: scale(0.92);
-}
-
 .guide-antenna-icon {
     width: 18px;
     height: 18px;
