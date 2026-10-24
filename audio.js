@@ -49,44 +49,32 @@ class RetroTVAudio {
      */
     playBeep(type = 'nav') {
         if (this.isMuted) return;
-        this.init();
-        if (!this.ctx) return;
 
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
+        const sounds = {
+            nav: 'sfx/conected.mp3',
+            select: 'sfx/frutiger-aero-sound.mp3',
+            back: 'sfx/achievement.mp3',
+            exit: 'sfx/default.mp3'
+        };
 
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
+        const src = sounds[type];
+        if (!src) return;
 
-        if (type === 'nav') {
-            // Soft rounded 2000s DirecTV blip
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(1480, now);
-            osc.frequency.exponentialRampToValueAtTime(1900, now + 0.04);
-            gain.gain.setValueAtTime(0.08 * this.volume, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-            osc.start(now);
-            osc.stop(now + 0.055);
-        } else if (type === 'select') {
-            // Confirmation chirp (two tones)
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(980, now);
-            osc.frequency.setValueAtTime(1420, now + 0.04);
-            gain.gain.setValueAtTime(0.12 * this.volume, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-            osc.start(now);
-            osc.stop(now + 0.13);
-        } else if (type === 'back' || type === 'exit') {
-            // Descending tone
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(1200, now);
-            osc.frequency.exponentialRampToValueAtTime(600, now + 0.08);
-            gain.gain.setValueAtTime(0.1 * this.volume, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
-            osc.start(now);
-            osc.stop(now + 0.095);
+        // Cacheia os áudios para reutilizá-los
+        this.beepAudios ??= {};
+
+        if (!this.beepAudios[type]) {
+            this.beepAudios[type] = new Audio(src);
         }
+
+        const audio = this.beepAudios[type];
+
+        audio.volume = Math.max(0, Math.min(1, this.volume));
+        audio.currentTime = 0;
+
+        audio.play().catch((error) => {
+            console.error(`Erro ao reproduzir o som "${type}":`, error);
+        });
     }
 
     /**
@@ -94,46 +82,19 @@ class RetroTVAudio {
      */
     playChannelSwitch() {
         if (this.isMuted) return;
-        this.init();
-        if (!this.ctx) return;
 
-        const now = this.ctx.currentTime;
-        
-        // Tuner relay thump
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(120, now);
-        osc.frequency.exponentialRampToValueAtTime(30, now + 0.06);
-        gain.gain.setValueAtTime(0.3 * this.volume, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.075);
-
-        // Subtle static burst during tuning
-        const bufferSize = this.ctx.sampleRate * 0.06;
-        const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < bufferSize; i++) {
-            data[i] = (Math.random() * 2 - 1) * 0.3;
+        if (!this.channelSwitchAudio) {
+            this.channelSwitchAudio = new Audio(
+                'sfx/click.mp3'
+            );
         }
-        const burstSource = this.ctx.createBufferSource();
-        burstSource.buffer = buffer;
-        const burstGain = this.ctx.createGain();
-        burstGain.gain.setValueAtTime(0.12 * this.volume, now);
-        burstGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-        
-        // High-pass filter for crisp burst
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'highpass';
-        filter.frequency.value = 1000;
 
-        burstSource.connect(filter);
-        filter.connect(burstGain);
-        burstGain.connect(this.ctx.destination);
-        burstSource.start(now);
+        this.channelSwitchAudio.volume = this.volume;
+        this.channelSwitchAudio.currentTime = 0;
+
+        this.channelSwitchAudio.play().catch((error) => {
+            console.error('Erro ao reproduzir o som:', error);
+        });
     }
 
     /**

@@ -746,7 +746,6 @@ class RetroTVController {
         document.getElementById('rc-info').addEventListener('click', () => this.toggleBanner());
         document.getElementById('rc-menu').addEventListener('click', () => this.toggleMiniGuide());
         document.getElementById('rc-exit').addEventListener('click', () => {
-            window.retroAudio.playBeep('exit');
             this.closeGuide();
             this.closeMiniGuide();
             this.hideBanner();
