@@ -1,0 +1,1361 @@
+/* 
+ * ===================================================================
+ * FRUTIGER AERO 2000s SATELLITE TV & SET-TOP BOX OSD THEME
+ * Inspired by DirecTV / Dish Network / SKY 2007-2009 EPG User Interface
+ * ===================================================================
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Titillium+Web:ital,wght@0,300;0,400;0,600;0,700;0,900;1,600;1,700&family=Rajdhani:wght@500;600;700&display=swap');
+
+:root {
+    /* Aero Palette */
+    --aero-blue-dark: #071f54;
+    --aero-blue-mid: #0d3b8f;
+    --aero-blue-bright: #1c5fd1;
+    --aero-sky-top: #eff6fc;
+    --aero-sky-mid: #b8d6ee;
+    --aero-sky-dark: #7aa7dc;
+    --aero-accent-amber: #f5a623;
+    --aero-accent-gold: #ffbe38;
+    --aero-border-light: rgba(255, 255, 255, 0.65);
+    --aero-border-blue: #3d80d1;
+    
+    /* Font */
+    --osd-font: 'Titillium Web', 'Segoe UI', -apple-system, BlinkMacSystemFont, Tahoma, sans-serif;
+    --osd-num-font: 'Rajdhani', 'Titillium Web', 'Segoe UI', monospace;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    background-color: #050a14;
+    color: #ffffff;
+    font-family: var(--osd-font);
+    overflow: hidden;
+}
+
+/* ===================================================================
+   MAIN TV APP CONTAINER (Simulates physical or widescreen TV frame)
+   =================================================================== */
+#tv-app {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle at center, #0f1c30 0%, #03060a 100%);
+    overflow: hidden;
+}
+
+/* TV Bezel / Chassis (Optional widescreen CRT/LCD frame) */
+.tv-screen-wrapper {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 1920px;
+    max-height: 1080px;
+    aspect-ratio: 16 / 9;
+    background-color: #000000;
+    overflow: hidden;
+    display: flex;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.9), inset 0 0 10px rgba(255, 255, 255, 0.1);
+}
+
+/* TV Screen Canvas & Media Feeds */
+#tv-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+}
+
+#custom-video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 2;
+    display: none;
+}
+
+/* ===================================================================
+   CRT SCANLINES & PHOSPHOR OVERLAY
+   =================================================================== */
+.crt-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 30;
+    pointer-events: none;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%),
+                linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+    background-size: 100% 3px, 6px 100%;
+    box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.7);
+    opacity: 0.85;
+    transition: opacity 0.3s ease;
+}
+
+.crt-overlay.disabled {
+    opacity: 0;
+}
+
+/* ===================================================================
+   TOP CHANNEL INFO BANNER (Recreating Screenshot 1)
+   =================================================================== */
+.channel-info-banner {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.65);
+    transform: translateY(0);
+    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
+    pointer-events: auto;
+}
+
+.channel-info-banner.hidden {
+    transform: translateY(-105%);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Row 1: Deep Navy/Cobalt Glass Header */
+.banner-top-row {
+    position: relative;
+    height: 64px;
+    padding: 0 28px;
+    background: linear-gradient(180deg, #1b4b9b 0%, #153f86 45%, #0e2f6c 52%, #123c82 100%);
+    border-bottom: 1.5px solid rgba(255, 255, 255, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    overflow: hidden;
+}
+
+/* Gloss specular curve across top */
+.banner-top-row::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -10%;
+    width: 120%;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.05) 100%);
+    border-radius: 0 0 50% 50% / 0 0 20px 20px;
+    pointer-events: none;
+}
+
+.banner-channel-badge {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    z-index: 2;
+}
+
+/* 3D Skeuomorphic Yin-Yang / Satellite Logo */
+.logo-orb {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff 0%, #d8e3ed 45%, #6a829e 85%, #3c4f63 100%);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.9), inset 0 -2px 3px rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+}
+
+.logo-orb svg {
+    width: 100%;
+    height: 100%;
+}
+
+.channel-num-name {
+    display: flex;
+    flex-direction: column;
+}
+
+.channel-num-name .ch-num {
+    font-family: var(--osd-num-font);
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+    letter-spacing: 1px;
+}
+
+.channel-num-name .ch-code {
+    font-size: 19px;
+    font-style: italic;
+    font-weight: 900;
+    line-height: 1.1;
+    color: #cbe0fc;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.banner-program-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    letter-spacing: 0.8px;
+    z-index: 2;
+    text-align: center;
+    flex: 1;
+    padding: 0 20px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.banner-audio-lang {
+    font-size: 20px;
+    font-weight: 600;
+    color: #dbe9fc;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Row 2: Silver-Blue Skeuomorphic Glass Specular Bar */
+.banner-middle-row {
+    height: 44px;
+    padding: 0 28px;
+    background: linear-gradient(180deg, #dcebfa 0%, #adcdeb 48%, #85b0df 52%, #b5d8f7 100%);
+    border-bottom: 1.5px solid #14356e;
+    display: flex;
+    align-items: center;
+    color: #0b2654;
+    font-weight: 700;
+    font-size: 18px;
+    box-shadow: inset 0 1px 1px #ffffff, inset 0 -1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.banner-info-segment {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0 18px;
+    border-right: 1.5px solid rgba(80, 125, 185, 0.45);
+    border-left: 1px solid rgba(255, 255, 255, 0.8);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+
+.banner-info-segment:first-child {
+    border-left: none;
+    padding-left: 0;
+}
+
+.banner-time-current {
+    font-weight: 800;
+    color: #071f46;
+}
+
+.banner-time-slot {
+    color: #0d3675;
+}
+
+.banner-rating {
+    font-weight: 800;
+    color: #0a275a;
+}
+
+.banner-icons-group {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding-left: 16px;
+}
+
+/* 3D Skeuomorphic Icons */
+.skeuo-icon {
+    width: 28px;
+    height: 28px;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+    transition: transform 0.2s ease;
+}
+
+.skeuo-icon:hover {
+    transform: scale(1.12);
+}
+
+/* Row 3: Dark Blue Sub-strip with Colored Remote Button Hints */
+.banner-bottom-row {
+    height: 34px;
+    padding: 0 28px;
+    background: linear-gradient(180deg, #09214d 0%, #051433 100%);
+    border-bottom: 2px solid #040c1e;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 15px;
+    font-weight: 600;
+    color: #ffffff;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+.banner-favorites-tag {
+    color: #e1edfc;
+    letter-spacing: 0.5px;
+}
+
+.banner-remote-hints {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.remote-hint-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.remote-hint-item:hover {
+    opacity: 0.85;
+}
+
+/* 3D Skeuomorphic Colored Orbs (Red, Green, Yellow, Blue) */
+.orb-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6), inset 0 1.5px 2px rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+}
+
+.orb-yellow {
+    background: radial-gradient(circle at 35% 30%, #fff7a1 0%, #ffcc00 50%, #d49a00 100%);
+}
+
+.orb-blue {
+    background: radial-gradient(circle at 35% 30%, #aae5ff 0%, #1e90ff 50%, #0056b3 100%);
+}
+
+.orb-green {
+    background: radial-gradient(circle at 35% 30%, #b8f7b5 0%, #2ecc71 50%, #178a48 100%);
+}
+
+.orb-red {
+    background: radial-gradient(circle at 35% 30%, #ffb3b3 0%, #e74c3c 50%, #991b0f 100%);
+}
+
+/* ===================================================================
+   FULL SCREEN EPG GUIDE (Recreating Screenshot 2)
+   =================================================================== */
+.epg-guide-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 25;
+    background: linear-gradient(135deg, #02669e 0%, #0278b8 40%, #014382 100%);
+    display: flex;
+    flex-direction: column;
+    opacity: 1;
+    transform: scale(1);
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s ease;
+    overflow: hidden;
+}
+
+.epg-guide-screen.hidden {
+    opacity: 0;
+    transform: scale(1.02);
+    pointer-events: none;
+}
+
+/* Guide Header (Glossy curved aero silver-white) */
+.epg-header {
+    position: relative;
+    height: 130px;
+    padding: 14px 28px 10px 28px;
+    background: linear-gradient(180deg, #f7fafd 0%, #d8e9f7 45%, #bedcf3 52%, #cae3f7 100%);
+    border-bottom: 2px solid #5784b8;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: inset 0 2px 3px #ffffff, 0 4px 15px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+}
+
+/* Large translucent "guide" text in background */
+.epg-header-watermark {
+    position: absolute;
+    top: 8px;
+    left: 48%;
+    font-size: 82px;
+    font-weight: 900;
+    color: rgba(125, 160, 195, 0.25);
+    letter-spacing: -2px;
+    pointer-events: none;
+    line-height: 1;
+}
+
+.epg-header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    z-index: 2;
+}
+
+/* DirecTV style cyclone 3D logo */
+.cyclone-logo {
+    width: 82px;
+    height: 52px;
+    background: linear-gradient(135deg, #094074 0%, #1976d2 100%);
+    border-radius: 4px;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+}
+
+.cyclone-logo svg {
+    width: 100%;
+    height: 100%;
+}
+
+.epg-header-titles {
+    display: flex;
+    flex-direction: column;
+}
+
+.epg-network-brand {
+    font-size: 15px;
+    font-weight: 800;
+    color: #071f46;
+    letter-spacing: 0.5px;
+}
+
+.epg-show-headline {
+    font-size: 26px;
+    font-weight: 800;
+    color: #04122e;
+    letter-spacing: 0.5px;
+}
+
+/* Picture-in-Picture (PIP) live video box in Guide */
+.epg-pip-box {
+    width: 250px;
+    height: 140px;
+    border-radius: 2px;
+    border: 5px solid #d2e4f5;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 0 4px rgba(0, 0, 0, 0.5);
+    background-color: #000000;
+    position: relative;
+    z-index: 5;
+    overflow: hidden;
+    margin-top: 25px;
+}
+
+.epg-pip-canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Sub-header Time Strip in Guide */
+.epg-subbar {
+    height: 38px;
+    padding: 0 28px;
+    background: linear-gradient(180deg, #bbdcf6 0%, #8dbbe5 100%);
+    border-bottom: 2px solid #004c8c;
+    display: flex;
+    align-items: center;
+    font-size: 18px;
+    font-weight: 700;
+    color: #06224e;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.epg-subbar-item {
+    padding: 0 18px;
+    border-right: 1.5px solid rgba(13, 59, 143, 0.3);
+}
+
+.epg-subbar-item:first-child {
+    padding-left: 0;
+}
+
+.epg-subbar-item:last-child {
+    border-right: none;
+}
+
+/* Informational Notice / Synopsis Box */
+.epg-notice-box {
+    padding: 12px 28px;
+    background: rgba(0, 70, 130, 0.35);
+    border-bottom: 1.5px solid rgba(255, 255, 255, 0.2);
+    font-size: 15px;
+    line-height: 1.4;
+    color: #f0f7ff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    min-height: 52px;
+    display: flex;
+    align-items: center;
+}
+
+/* Main EPG Schedule Grid */
+.epg-grid-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: linear-gradient(180deg, #014382 0%, #013160 100%);
+}
+
+/* Grid Time Header Row */
+.epg-grid-time-row {
+    height: 40px;
+    display: flex;
+    background: linear-gradient(180deg, #0a336b 0%, #072550 100%);
+    border-bottom: 2px solid #0f529e;
+    color: #e3effd;
+    font-size: 18px;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.epg-time-date-header {
+    width: 200px;
+    min-width: 200px;
+    padding-left: 28px;
+    display: flex;
+    align-items: center;
+    border-right: 2px solid #0f529e;
+}
+
+.epg-time-slot-header {
+    flex: 1;
+    padding-left: 20px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #134685;
+}
+
+/* Grid Channels & Programs Body */
+.epg-grid-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #2672bd #05244c;
+}
+
+.epg-grid-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.epg-grid-body::-webkit-scrollbar-thumb {
+    background: #2672bd;
+    border-radius: 4px;
+}
+
+/* Single Channel Row */
+.epg-row {
+    height: 52px;
+    display: flex;
+    border-bottom: 1px solid #0b417c;
+    position: relative;
+    transition: background 0.15s ease;
+}
+
+.epg-row:nth-child(even) {
+    background-color: rgba(2, 45, 90, 0.4);
+}
+
+.epg-channel-cell {
+    width: 200px;
+    min-width: 200px;
+    padding-left: 28px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-right: 2px solid #0b417c;
+    background: linear-gradient(90deg, rgba(8, 40, 85, 0.8) 0%, rgba(4, 25, 58, 0.8) 100%);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 19px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    cursor: pointer;
+}
+
+.epg-channel-cell .cell-ch-num {
+    font-family: var(--osd-num-font);
+    font-size: 20px;
+    color: #92c5ff;
+}
+
+.epg-programs-track {
+    flex: 1;
+    display: flex;
+    position: relative;
+}
+
+.epg-program-block {
+    flex: 1;
+    height: 100%;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-right: 1px solid #0b417c;
+    color: #cfdfee;
+    font-size: 17px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s ease;
+}
+
+.epg-program-block:hover {
+    background-color: rgba(45, 120, 210, 0.3);
+    color: #ffffff;
+}
+
+/* Amber/Orange Skeuomorphic Selection Highlight (Direct from Screenshot 2) */
+.epg-program-block.selected,
+.epg-row.selected .epg-program-block.active-slot {
+    background: linear-gradient(180deg, #ffc83b 0%, #f39200 48%, #d96f00 52%, #f59f16 100%) !important;
+    color: #1a0800 !important;
+    font-weight: 800 !important;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+    border: 2px solid #ffe38f !important;
+    border-radius: 4px;
+    box-shadow: 0 0 14px rgba(243, 146, 0, 0.7), inset 0 1px 2px #ffffff;
+    z-index: 10;
+}
+
+.epg-program-arrow {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 14px;
+}
+
+/* Guide Bottom Bar */
+.epg-bottom-bar {
+    height: 44px;
+    padding: 0 28px;
+    background: linear-gradient(180deg, #092754 0%, #03132e 100%);
+    border-top: 2px solid #2062aa;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.epg-channels-filter {
+    color: #bbd8fc;
+    font-size: 17px;
+}
+
+.epg-bottom-hints {
+    display: flex;
+    align-items: center;
+    gap: 22px;
+}
+
+/* ===================================================================
+   MINI GUIDE OVERLAY (Compact side panel)
+   =================================================================== */
+.mini-guide-overlay {
+    position: absolute;
+    bottom: 45px;
+    left: 28px;
+    width: 360px;
+    max-height: 480px;
+    background: linear-gradient(180deg, rgba(12, 38, 82, 0.94) 0%, rgba(6, 20, 48, 0.96) 100%);
+    border: 2px solid #3d80d1;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    z-index: 22;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+}
+
+.mini-guide-overlay.hidden {
+    transform: translateY(30px) scale(0.95);
+    opacity: 0;
+    pointer-events: none;
+}
+
+.mini-guide-header {
+    height: 42px;
+    padding: 0 16px;
+    background: linear-gradient(180deg, #2b67be 0%, #174287 100%);
+    border-bottom: 1.5px solid #4a90e2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 17px;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.mini-guide-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.mini-guide-item {
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    transition: background 0.15s ease;
+}
+
+.mini-guide-item:hover,
+.mini-guide-item.active {
+    background: linear-gradient(90deg, #1852a3 0%, #0c336b 100%);
+    border-left: 4px solid #f5a623;
+}
+
+.mini-guide-ch-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mini-guide-num {
+    font-family: var(--osd-num-font);
+    font-size: 18px;
+    font-weight: 700;
+    color: #ffbe38;
+}
+
+.mini-guide-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #e1efff;
+}
+
+.mini-guide-prog {
+    font-size: 13px;
+    color: #92bce8;
+}
+
+/* ===================================================================
+   OSD POPUPS (Numeric Channel Dialing, Volume Slider, Info Toasts)
+   =================================================================== */
+/* Channel Numeric Entry Popup (Top Right) */
+.osd-channel-entry {
+    position: absolute;
+    top: 24px;
+    right: 28px;
+    padding: 8px 18px;
+    background: linear-gradient(180deg, #093778 0%, #031c44 100%);
+    border: 2px solid #29b6f6;
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7), inset 0 1px 2px rgba(255, 255, 255, 0.5);
+    font-family: var(--osd-num-font);
+    font-size: 38px;
+    font-weight: 800;
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    letter-spacing: 4px;
+    z-index: 28;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.osd-channel-entry.hidden {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none;
+}
+
+.osd-cursor-blink {
+    animation: blink 0.8s infinite;
+    color: #29b6f6;
+}
+
+@keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+/* Volume OSD Bar (Bottom Center) */
+.osd-volume-popup {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(180deg, rgba(12, 38, 82, 0.95) 0%, rgba(4, 16, 40, 0.95) 100%);
+    border: 2px solid #3d80d1;
+    border-radius: 20px;
+    padding: 10px 24px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 28;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.osd-volume-popup.hidden {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+    pointer-events: none;
+}
+
+.osd-vol-bar-track {
+    width: 220px;
+    height: 14px;
+    background: #041024;
+    border-radius: 7px;
+    border: 1px solid #1a4f8f;
+    overflow: hidden;
+    position: relative;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.osd-vol-bar-fill {
+    height: 100%;
+    width: 70%;
+    background: linear-gradient(90deg, #2ecc71 0%, #f1c40f 70%, #e74c3c 100%);
+    border-radius: 6px;
+    transition: width 0.1s ease;
+}
+
+/* ===================================================================
+   FLOATING / DOCKABLE 2000s SATELLITE REMOTE CONTROL
+   =================================================================== */
+.remote-control-panel {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 280px;
+    background: linear-gradient(180deg, #1b283d 0%, #0d1522 50%, #080d17 100%);
+    border-radius: 28px;
+    border: 3px solid #2e4466;
+    box-shadow: 0 16px 45px rgba(0, 0, 0, 0.9), inset 0 2px 3px rgba(255, 255, 255, 0.35);
+    padding: 22px 18px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+}
+
+.remote-control-panel.collapsed {
+    transform: translateY(calc(100% - 48px));
+}
+
+.remote-drag-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.remote-brand-text {
+    font-size: 14px;
+    font-weight: 800;
+    color: #92bce8;
+    letter-spacing: 1px;
+}
+
+.remote-toggle-btn {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+/* Remote Top Section: Power, Mute, LED */
+.remote-power-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.remote-led {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #ff2a2a;
+    box-shadow: 0 0 8px #ff2a2a;
+    transition: all 0.2s;
+}
+
+.btn-remote-power {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ff6b6b 0%, #d63031 60%, #871314 100%);
+    border: 2px solid #ff7675;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.6), inset 0 2px 2px rgba(255, 255, 255, 0.5);
+    color: #ffffff;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.btn-remote-power:active {
+    transform: scale(0.94);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Function row: Guide, Info, Menu, Exit */
+.remote-fn-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.btn-remote-pill {
+    height: 36px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #3d5170 0%, #202d40 100%);
+    border: 1.5px solid #577399;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+    color: #e2eeff;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-remote-pill:active {
+    transform: scale(0.95);
+    background: #192434;
+}
+
+/* D-PAD (Directional Cross with Center Select) */
+.remote-dpad-container {
+    width: 160px;
+    height: 160px;
+    margin: 4px auto;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #3a4b64 0%, #1c2636 75%, #0f1520 100%);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.7), inset 0 2px 2px rgba(255, 255, 255, 0.4);
+    border: 2px solid #4a6385;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dpad-btn {
+    position: absolute;
+    background: none;
+    border: none;
+    color: #cfdfee;
+    font-size: 18px;
+    cursor: pointer;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s;
+}
+
+.dpad-btn:active {
+    color: #ffbe38;
+}
+
+.dpad-up    { top: 4px; left: 58px; }
+.dpad-down  { bottom: 4px; left: 58px; }
+.dpad-left  { left: 4px; top: 58px; }
+.dpad-right { right: 4px; top: 58px; }
+
+.dpad-center-ok {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #4f698d 0%, #253549 60%, #151e2b 100%);
+    border: 2px solid #6b8db7;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.6), inset 0 2px 2px rgba(255, 255, 255, 0.5);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dpad-center-ok:active {
+    transform: scale(0.92);
+}
+
+/* Rockers: VOL + / - and CH + / - */
+.remote-rockers-row {
+    display: flex;
+    justify-content: space-around;
+    padding: 0 10px;
+}
+
+.rocker-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #111a27;
+    border-radius: 16px;
+    border: 1.5px solid #374b67;
+    padding: 4px;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+.rocker-label {
+    font-size: 11px;
+    font-weight: 800;
+    color: #8faecc;
+    margin: 2px 0;
+}
+
+.btn-rocker {
+    width: 48px;
+    height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #374b67 0%, #202e42 100%);
+    border: 1px solid #4f698d;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.btn-rocker:active {
+    background: #141c28;
+}
+
+/* Colored Buttons Row (Red, Green, Yellow, Blue) */
+.remote-color-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 2px 0;
+}
+
+.btn-remote-color {
+    height: 28px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.6), inset 0 2px 2px rgba(255, 255, 255, 0.7);
+    transition: transform 0.1s;
+}
+
+.btn-remote-color:active {
+    transform: scale(0.92);
+}
+
+.btn-color-red    { background: radial-gradient(circle at 35% 30%, #ff8585 0%, #e74c3c 60%, #a82315 100%); }
+.btn-color-green  { background: radial-gradient(circle at 35% 30%, #9ff2a8 0%, #2ecc71 60%, #15793e 100%); }
+.btn-color-yellow { background: radial-gradient(circle at 35% 30%, #fff285 0%, #f1c40f 60%, #b38600 100%); }
+.btn-color-blue   { background: radial-gradient(circle at 35% 30%, #85d7ff 0%, #3498db 60%, #185e96 100%); }
+
+/* Numeric Keypad Grid */
+.remote-numpad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+}
+
+.btn-num {
+    height: 36px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #2c3a4f 0%, #161e2a 100%);
+    border: 1px solid #415570;
+    box-shadow: 0 3px 4px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+    font-family: var(--osd-num-font);
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.btn-num:active {
+    background: #0f151f;
+    transform: scale(0.95);
+}
+
+/* Floating Remote Toggle Button (when remote is collapsed on desktop / mobile) */
+.floating-remote-launcher {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    padding: 12px 20px;
+    border-radius: 30px;
+    background: linear-gradient(180deg, #1c52b8 0%, #0d2e80 100%);
+    border: 2px solid #5798f0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), inset 0 2px 2px rgba(255, 255, 255, 0.6);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    z-index: 45;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.floating-remote-launcher:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 28px rgba(28, 82, 184, 0.6);
+}
+
+/* Custom Stream URL Modal */
+.modal-custom-stream {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 480px;
+    background: linear-gradient(180deg, #112d59 0%, #071733 100%);
+    border: 2px solid #3d80d1;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9);
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.modal-custom-stream.active {
+    display: flex;
+}
+
+.modal-custom-stream input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #040c1a;
+    border: 1.5px solid #2d65a8;
+    color: #ffffff;
+    font-size: 15px;
+    outline: none;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.btn-modal {
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-modal-cancel {
+    background: #20334d;
+    color: #cfdfee;
+}
+
+.btn-modal-load {
+    background: linear-gradient(180deg, #ffc83b 0%, #f39200 100%);
+    color: #1a0800;
+}
+
+/* ===================================================================
+   RESPONSIVE DESIGN (PC & MOBILE)
+   =================================================================== */
+@media (max-width: 900px) {
+    .banner-top-row {
+        height: 52px;
+        padding: 0 12px;
+    }
+
+    .banner-channel-badge .logo-orb {
+        width: 34px;
+        height: 34px;
+    }
+
+    .channel-num-name .ch-num {
+        font-size: 19px;
+    }
+
+    .channel-num-name .ch-code {
+        font-size: 14px;
+    }
+
+    .banner-program-title {
+        font-size: 16px;
+        padding: 0 8px;
+    }
+
+    .banner-audio-lang {
+        font-size: 13px;
+    }
+
+    .banner-middle-row {
+        height: 36px;
+        padding: 0 12px;
+        font-size: 13px;
+    }
+
+    .banner-info-segment {
+        padding: 0 8px;
+    }
+
+    .banner-bottom-row {
+        height: 30px;
+        padding: 0 12px;
+        font-size: 12px;
+    }
+
+    .banner-remote-hints {
+        gap: 12px;
+    }
+
+    .epg-header {
+        height: 95px;
+        padding: 8px 12px;
+    }
+
+    .cyclone-logo {
+        width: 55px;
+        height: 36px;
+    }
+
+    .epg-network-brand {
+        font-size: 12px;
+    }
+
+    .epg-show-headline {
+        font-size: 17px;
+    }
+
+    .epg-subbar {
+        height: 32px;
+        padding: 0 12px;
+        font-size: 14px;
+    }
+
+    .epg-notice-box {
+        padding: 8px 12px;
+        font-size: 13px;
+    }
+
+    .epg-pip-box {
+        width: 130px;
+        height: 75px;
+        margin-top: 5px;
+        border-width: 3px;
+    }
+
+    .epg-time-date-header,
+    .epg-channel-cell {
+        width: 120px;
+        min-width: 120px;
+        padding-left: 8px;
+        font-size: 13px;
+    }
+
+    .epg-program-block {
+        font-size: 13px;
+        padding: 0 8px;
+    }
+
+    .mini-guide-overlay {
+        width: calc(100vw - 20px);
+        left: 10px;
+        bottom: 15px;
+        max-height: 50vh;
+    }
+}
+
+/* Portrait Mobile specific layout: TV on top, Remote below */
+@media (max-width: 768px) and (orientation: portrait) {
+    #tv-app {
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 10px 0;
+        overflow-y: auto;
+    }
+
+    .tv-screen-wrapper {
+        width: 95%;
+        max-height: 34vh;
+        aspect-ratio: 16 / 9;
+        border-radius: 10px;
+        border: 3px solid #203a5e;
+        flex-shrink: 0;
+    }
+
+    .remote-control-panel {
+        position: relative;
+        right: auto;
+        bottom: auto;
+        width: 95%;
+        max-width: 350px;
+        margin: 12px auto 20px auto;
+        padding: 16px 14px;
+        border-radius: 20px;
+        z-index: 40;
+    }
+
+    .floating-remote-launcher {
+        display: none !important;
+    }
+
+    .epg-pip-box {
+        display: none;
+    }
+
+    .banner-middle-row .banner-icons-group {
+        display: none;
+    }
+}

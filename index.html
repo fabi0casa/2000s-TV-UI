@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Frutiger Aero IPTV - 2000s Set-Top Box UI</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- SVG Skeuomorphic Icons & Badges Definitions -->
+    <svg style="display: none;">
+        <defs>
+            <!-- 3D Globe with Atmosphere -->
+            <radialGradient id="globeGrad" cx="35%" cy="30%" r="70%">
+                <stop offset="0%" stop-color="#80d4ff" />
+                <stop offset="30%" stop-color="#1e88e5" />
+                <stop offset="75%" stop-color="#0d47a1" />
+                <stop offset="100%" stop-color="#051e44" />
+            </radialGradient>
+            <radialGradient id="globeShine" cx="30%" cy="25%" r="50%">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+                <stop offset="50%" stop-color="#ffffff" stop-opacity="0.1" />
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+            </radialGradient>
+
+            <!-- 3D Silver Rim for Clock -->
+            <linearGradient id="silverRim" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff" />
+                <stop offset="35%" stop-color="#d4e0eb" />
+                <stop offset="60%" stop-color="#8fa3b5" />
+                <stop offset="100%" stop-color="#4e6273" />
+            </linearGradient>
+
+            <!-- 3D Chrome Gear -->
+            <linearGradient id="chromeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#fdfdfd" />
+                <stop offset="48%" stop-color="#c8d6e5" />
+                <stop offset="52%" stop-color="#8395a7" />
+                <stop offset="100%" stop-color="#cad6e4" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <div id="tv-app">
+        <!-- Main TV Screen Container -->
+        <div class="tv-screen-wrapper">
+            <!-- Procedural Channel Canvas Broadcast Feeds -->
+            <canvas id="tv-canvas"></canvas>
+
+            <!-- Custom Video Feed Support (for user stream URLs or files) -->
+            <video id="custom-video" loop playsinline></video>
+
+            <!-- CRT Scanlines & Phosphor Bloom Layer -->
+            <div id="crt-layer" class="crt-overlay"></div>
+
+            <!-- ========================================================
+                 TOP CHANNEL INFO BANNER (OSD - Inspired by Screenshot 1)
+                 ======================================================== -->
+            <div id="channel-banner" class="channel-info-banner">
+                <!-- Top Row: Navy Gloss Glass -->
+                <div class="banner-top-row">
+                    <div class="banner-channel-badge">
+                        <div class="logo-orb">
+                            <!-- Yin-Yang Logo Emblem -->
+                            <svg viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="48" fill="#111827"/>
+                                <path d="M 50 2 A 48 48 0 0 1 50 98 A 24 24 0 0 1 50 50 A 24 24 0 0 0 50 2" fill="#ffffff"/>
+                                <circle cx="50" cy="26" r="6" fill="#111827"/>
+                                <circle cx="50" cy="74" r="6" fill="#ffffff"/>
+                            </svg>
+                        </div>
+                        <div class="channel-num-name">
+                            <span id="banner-ch-num" class="ch-num">001</span>
+                            <span id="banner-ch-code" class="ch-code">ARP-TV</span>
+                        </div>
+                    </div>
+
+                    <div id="banner-prog-title" class="banner-program-title">
+                        Aexion - Velvet
+                    </div>
+
+                    <div class="banner-audio-lang">
+                        <span id="banner-lang">English</span>
+                    </div>
+                </div>
+
+                <!-- Middle Row: Metallic Light Blue Gloss with dividers -->
+                <div class="banner-middle-row">
+                    <div class="banner-info-segment">
+                        <span id="banner-current-time" class="banner-time-current">Fri 8/16 1:00p</span>
+                    </div>
+                    <div class="banner-info-segment">
+                        <span id="banner-timeslot" class="banner-time-slot">1:00p - 2:00p</span>
+                    </div>
+                    <div class="banner-info-segment">
+                        <span id="banner-rating" class="banner-rating">NONE</span>
+                    </div>
+
+                    <!-- 3D Skeuomorphic Icons Group -->
+                    <div class="banner-icons-group">
+                        <!-- 3D Globe -->
+                        <div class="skeuo-icon" title="Global Satellite Network">
+                            <svg viewBox="0 0 40 40">
+                                <circle cx="20" cy="20" r="18" fill="url(#globeGrad)" />
+                                <!-- Continents shape -->
+                                <path d="M 12 12 Q 18 10 24 14 Q 28 17 26 23 Q 22 28 16 26 Q 10 24 12 12 Z" fill="#43a047" opacity="0.85"/>
+                                <path d="M 23 26 Q 27 25 30 29 Q 28 34 22 34 Q 20 30 23 26 Z" fill="#43a047" opacity="0.85"/>
+                                <!-- Gloss shine highlight -->
+                                <ellipse cx="16" cy="12" rx="10" ry="6" fill="url(#globeShine)" transform="rotate(-20 16 12)" />
+                                <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
+                            </svg>
+                        </div>
+
+                        <!-- 3D Analog Clock -->
+                        <div class="skeuo-icon" title="System Clock">
+                            <svg viewBox="0 0 40 40">
+                                <circle cx="20" cy="20" r="18" fill="url(#silverRim)" />
+                                <circle cx="20" cy="20" r="14" fill="#f0f7fd" stroke="#7b9cb8" stroke-width="1"/>
+                                <!-- Clock marks -->
+                                <line x1="20" y1="8" x2="20" y2="10.5" stroke="#102a45" stroke-width="1.5"/>
+                                <line x1="20" y1="29.5" x2="20" y2="32" stroke="#102a45" stroke-width="1.5"/>
+                                <line x1="8" y1="20" x2="10.5" y2="20" stroke="#102a45" stroke-width="1.5"/>
+                                <line x1="29.5" y1="20" x2="32" y2="20" stroke="#102a45" stroke-width="1.5"/>
+                                <!-- Hands -->
+                                <line id="clock-hour-hand" x1="20" y1="20" x2="20" y2="13" stroke="#0e2338" stroke-width="2" stroke-linecap="round"/>
+                                <line id="clock-minute-hand" x1="20" y1="20" x2="27" y2="20" stroke="#173d61" stroke-width="1.5" stroke-linecap="round"/>
+                                <circle cx="20" cy="20" r="2" fill="#d32f2f"/>
+                            </svg>
+                        </div>
+
+                        <!-- 3D Chrome Gear -->
+                        <div class="skeuo-icon" title="TV Settings" id="btn-banner-settings" style="cursor: pointer;">
+                            <svg viewBox="0 0 40 40">
+                                <circle cx="20" cy="20" r="15" fill="url(#chromeGrad)" stroke="#526b88" stroke-width="1"/>
+                                <path d="M 18 4 L 22 4 L 22 8 L 18 8 Z M 18 32 L 22 32 L 22 36 L 18 36 Z M 4 18 L 8 18 L 8 22 L 4 22 Z M 32 18 L 36 18 L 36 22 L 32 22 Z
+                                         M 8 9 L 12 6 L 14 9 L 10 12 Z M 26 29 L 30 26 L 32 29 L 28 32 Z M 9 30 L 6 26 L 9 24 L 12 28 Z M 29 10 L 26 6 L 29 4 L 32 8 Z" fill="url(#chromeGrad)" stroke="#455a73" stroke-width="0.8"/>
+                                <circle cx="20" cy="20" r="6" fill="#203348" stroke="#ffffff" stroke-width="1"/>
+                                <ellipse cx="17" cy="16" rx="9" ry="5" fill="rgba(255,255,255,0.45)" transform="rotate(-30 17 16)"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Row: Favorites & Color Action Hints -->
+                <div class="banner-bottom-row">
+                    <div class="banner-favorites-tag">Favorites List: Channels</div>
+                    <div class="banner-remote-hints">
+                        <div class="remote-hint-item" id="hint-red-signal">
+                            <span class="orb-dot orb-red"></span>
+                            <span>Sem Sinal (Chiado)</span>
+                        </div>
+                        <div class="remote-hint-item" id="hint-green-crt">
+                            <span class="orb-dot orb-green"></span>
+                            <span>CRT TV Mode</span>
+                        </div>
+                        <div class="remote-hint-item" id="hint-options">
+                            <span class="orb-dot orb-yellow"></span>
+                            <span>TV Options</span>
+                        </div>
+                        <div class="remote-hint-item" id="hint-mini-guide">
+                            <span class="orb-dot orb-blue"></span>
+                            <span>Mini Guide</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================
+                 FULL SCREEN EPG GUIDE (Inspired directly by Screenshot 2)
+                 ======================================================== -->
+            <div id="epg-guide" class="epg-guide-screen hidden">
+                <!-- Glossy White/Silver Aero Wave Header -->
+                <div class="epg-header">
+                    <div class="epg-header-watermark">guide</div>
+
+                    <div class="epg-header-left">
+                        <!-- DirecTV Cyclone Style Logo -->
+                        <div class="cyclone-logo">
+                            <svg viewBox="0 0 80 50">
+                                <path d="M 12 40 C 20 10, 60 5, 68 35 C 50 18, 30 22, 12 40 Z" fill="#ffffff" opacity="0.95"/>
+                                <path d="M 22 42 C 30 24, 52 22, 60 42 C 48 30, 36 32, 22 42 Z" fill="#29b6f6"/>
+                            </svg>
+                        </div>
+                        <div class="epg-header-titles">
+                            <span class="epg-network-brand">ARPWIRE TV</span>
+                            <span id="epg-headline-text" class="epg-show-headline">ARPWIRE TV CHOICE (2009)</span>
+                        </div>
+                    </div>
+
+                    <!-- Live PIP Picture-In-Picture Mini Box -->
+                    <div class="epg-pip-box">
+                        <canvas id="pip-canvas" class="epg-pip-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Sub-bar: Time & Ratings -->
+                <div class="epg-subbar">
+                    <div class="epg-subbar-item" id="epg-current-time">Mon 5:46a</div>
+                    <div class="epg-subbar-item" id="epg-timeslot">5:30a - 6:00a</div>
+                    <div class="epg-subbar-item" id="epg-rating">TV-PG</div>
+                </div>
+
+                <!-- Informational Notice / Synopsis Box -->
+                <div class="epg-notice-box" id="epg-synopsis-text">
+                    Unable to retrieve television lineup. Check for anything obstructing your satellite dish such as tree branches, severe rain, or snow build-up. If safe to do so, remove the obstruction or wait for it to pass.
+                </div>
+
+                <!-- Main EPG Grid Container -->
+                <div class="epg-grid-container">
+                    <!-- Timeline header -->
+                    <div class="epg-grid-time-row">
+                        <div class="epg-time-date-header" id="epg-date-label">Mon 9/13</div>
+                        <div class="epg-time-slot-header">5:30a</div>
+                        <div class="epg-time-slot-header">6:00a</div>
+                        <div class="epg-time-slot-header">6:30a</div>
+                    </div>
+
+                    <!-- Channels and program cells list -->
+                    <div class="epg-grid-body" id="epg-rows-list">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- EPG Bottom Bar with Colored Navigation Orbs -->
+                <div class="epg-bottom-bar">
+                    <div class="epg-channels-filter">Channels I Get</div>
+                    <div class="epg-bottom-hints">
+                        <div class="remote-hint-item" id="epg-hint-red">
+                            <span class="orb-dot orb-red"></span>
+                            <span>-12hrs</span>
+                        </div>
+                        <div class="remote-hint-item" id="epg-hint-green">
+                            <span class="orb-dot orb-green"></span>
+                            <span>+12hrs</span>
+                        </div>
+                        <div class="remote-hint-item" id="epg-hint-yellow">
+                            <span class="orb-dot orb-yellow"></span>
+                            <span>Guide Options</span>
+                        </div>
+                        <div class="remote-hint-item" id="epg-hint-blue">
+                            <span class="orb-dot orb-blue"></span>
+                            <span>Fechar (Exit)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================
+                 MINI GUIDE POPUP OVERLAY
+                 ======================================================== -->
+            <div id="mini-guide" class="mini-guide-overlay hidden">
+                <div class="mini-guide-header">
+                    <span>📡 MINI GUIDE</span>
+                    <span style="font-size: 13px; color: #a5c7eb;">Pressione OK para sintonizar</span>
+                </div>
+                <div class="mini-guide-list" id="mini-guide-items">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- ========================================================
+                 OSD NUMERIC DIALING POPUP (e.g. "295-")
+                 ======================================================== -->
+            <div id="osd-channel-entry" class="osd-channel-entry hidden">
+                <span id="osd-input-digits">001</span><span class="osd-cursor-blink">-</span>
+            </div>
+
+            <!-- ========================================================
+                 OSD VOLUME BAR POPUP
+                 ======================================================== -->
+            <div id="osd-volume-box" class="osd-volume-popup hidden">
+                <span id="vol-icon" style="font-size: 18px;">🔊</span>
+                <span id="vol-text" style="font-size: 16px; font-weight: 800; color: #ffffff;">VOL 70%</span>
+                <div class="osd-vol-bar-track">
+                    <div id="vol-bar-fill" class="osd-vol-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         FLOATING 2000s SATELLITE REMOTE CONTROL (For PC & Mobile)
+         ============================================================ -->
+    <div id="remote-control" class="remote-control-panel">
+        <div class="remote-drag-bar" id="remote-header">
+            <span class="remote-brand-text">ARPWIRE • SAT 2009</span>
+            <button class="remote-toggle-btn" id="btn-minimize-remote" title="Minimizar">✕</button>
+        </div>
+
+        <!-- Power & Status Row -->
+        <div class="remote-power-row">
+            <button class="btn-remote-power" id="rc-power" title="Ligar / Desligar TV">⏻</button>
+            <div class="remote-led" id="rc-led"></div>
+            <button class="btn-remote-pill" id="rc-mute" style="width: 58px;" title="Mudo">MUTE</button>
+        </div>
+
+        <!-- Function Row: Guide, Info, Menu, Exit -->
+        <div class="remote-fn-row">
+            <button class="btn-remote-pill" id="rc-guide" title="Guia Completo">GUIDE</button>
+            <button class="btn-remote-pill" id="rc-info" title="Informações OSD">INFO</button>
+            <button class="btn-remote-pill" id="rc-menu" title="Mini Guia">MINI</button>
+            <button class="btn-remote-pill" id="rc-exit" title="Sair do Menu">EXIT</button>
+        </div>
+
+        <!-- Directional D-PAD -->
+        <div class="remote-dpad-container">
+            <button class="dpad-btn dpad-up" id="rc-up">▲</button>
+            <button class="dpad-btn dpad-left" id="rc-left">◀</button>
+            <button class="dpad-center-ok" id="rc-ok">SELECT</button>
+            <button class="dpad-btn dpad-right" id="rc-right">▶</button>
+            <button class="dpad-btn dpad-down" id="rc-down">▼</button>
+        </div>
+
+        <!-- Volume and Channel Rockers -->
+        <div class="remote-rockers-row">
+            <div class="rocker-box">
+                <button class="btn-rocker" id="rc-vol-up">+</button>
+                <span class="rocker-label">VOL</span>
+                <button class="btn-rocker" id="rc-vol-down">-</button>
+            </div>
+            <div class="rocker-box">
+                <button class="btn-rocker" id="rc-ch-up">+</button>
+                <span class="rocker-label">CHAN</span>
+                <button class="btn-rocker" id="rc-ch-down">-</button>
+            </div>
+        </div>
+
+        <!-- 4 Color Buttons -->
+        <div class="remote-color-row">
+            <button class="btn-remote-color btn-color-red" id="rc-red" title="Tela de Chiado (Sem Sinal)"></button>
+            <button class="btn-remote-color btn-color-green" id="rc-green" title="Alternar Tubo CRT"></button>
+            <button class="btn-remote-color btn-color-yellow" id="rc-yellow" title="Opções de TV"></button>
+            <button class="btn-remote-color btn-color-blue" id="rc-blue" title="Mini Guia"></button>
+        </div>
+
+        <!-- Numeric Keypad Grid -->
+        <div class="remote-numpad-grid">
+            <button class="btn-num" data-num="1">1</button>
+            <button class="btn-num" data-num="2">2</button>
+            <button class="btn-num" data-num="3">3</button>
+            <button class="btn-num" data-num="4">4</button>
+            <button class="btn-num" data-num="5">5</button>
+            <button class="btn-num" data-num="6">6</button>
+            <button class="btn-num" data-num="7">7</button>
+            <button class="btn-num" data-num="8">8</button>
+            <button class="btn-num" data-num="9">9</button>
+            <button class="btn-num" id="rc-prev" style="font-size: 13px;">FLASH</button>
+            <button class="btn-num" data-num="0">0</button>
+            <button class="btn-num" id="rc-enter" style="font-size: 13px;">ENTER</button>
+        </div>
+    </div>
+
+    <!-- Floating launcher button to restore remote control when closed -->
+    <div class="floating-remote-launcher" id="floating-remote-btn" style="display: none;">
+        <span>🎮</span>
+        <span>Abrir Controle Remoto</span>
+    </div>
+
+    <!-- Custom IPTV / Video URL Modal -->
+    <div id="modal-stream" class="modal-custom-stream">
+        <h3 style="color: #64b5f6; font-size: 20px;">Adicionar Transmissão / URL IPTV</h3>
+        <p style="font-size: 14px; color: #bad7f5;">Insira a URL de um vídeo (.mp4, .webm) ou stream para reproduzir na tela da TV:</p>
+        <input type="text" id="stream-url-input" placeholder="https://exemplo.com/video.mp4">
+        <div class="modal-actions">
+            <button class="btn-modal btn-modal-cancel" id="btn-cancel-stream">Cancelar</button>
+            <button class="btn-modal btn-modal-load" id="btn-load-stream">Sintonizar Stream</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="audio.js"></script>
+    <script src="channels.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
