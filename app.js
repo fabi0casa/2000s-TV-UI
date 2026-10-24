@@ -648,8 +648,8 @@ class RetroTVController {
         const led = document.getElementById('rc-led');
 
         if (this.isPowerOn) {
-            if (led) led.style.backgroundColor = '#00ff66';
-            if (led) led.style.boxShadow = '0 0 10px #00ff66';
+            if (led) led.style.backgroundColor = '#265bec';
+            if (led) led.style.boxShadow = '0 0 10px #265bec';
             this.tvCanvas.style.filter = 'none';
             this.tuneChannelByIndex(this.currentChannelIndex, true);
             this.showBanner(4000);
