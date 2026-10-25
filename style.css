@@ -925,8 +925,8 @@ html, body {
     width: 10px;
     height: 10px;
     border-radius: 50%;
-    background-color: #ff2a2a;
-    box-shadow: 0 0 8px #ff2a2a;
+    background-color: #125bec;
+    box-shadow: 0 0 8px #125bec;
     transition: all 0.2s;
 }
 
@@ -1200,10 +1200,9 @@ html, body {
     position: fixed;
     right: 20px;
     bottom: 20px;
-    padding: 12px 20px;
-    border-radius: 30px;
-    background: linear-gradient(180deg, #1c52b8 0%, #0d2e80 100%);
-    border: 2px solid #5798f0;
+    padding: 3px 5px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #383eec 0%, #5c61e2 100%);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), inset 0 2px 2px rgba(255, 255, 255, 0.6);
     color: #ffffff;
     font-weight: 700;
@@ -1213,12 +1212,26 @@ html, body {
     gap: 10px;
     cursor: pointer;
     z-index: 45;
+    opacity: 0.3;
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .floating-remote-launcher:hover {
     transform: translateY(-2px);
     box-shadow: 0 12px 28px rgba(28, 82, 184, 0.6);
+    opacity: 0.6;
+}
+
+.floating-remote-logo{
+    object-fit: contain;
+    opacity: 0.5;
+    height: 5vh;
+    width: 5vh;
+    transition: opacity 0.2s ease;
+}
+
+.floating-remote-logo:hover{
+    opacity: 0.9;
 }
 
 /* Custom Stream URL Modal */

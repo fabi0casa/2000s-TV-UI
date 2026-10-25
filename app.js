@@ -703,8 +703,8 @@ class RetroTVController {
             this.tuneChannelByIndex(this.currentChannelIndex, true);
             this.showBanner(4000);
         } else {
-            if (led) led.style.backgroundColor = '#ff2a2a';
-            if (led) led.style.boxShadow = '0 0 8px #ff2a2a';
+            if (led) led.style.backgroundColor = '#191921';
+            if (led) led.style.boxShadow = '0 0 8px #ff2a2a00';
             window.retroAudio.stopStaticNoise();
             window.retroAudio.playBeep('exit');
             this.hideBanner();
