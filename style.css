@@ -845,22 +845,27 @@ html, body {
 }
 
 /* ===================================================================
-   VOLUME OSD BAR (Frutiger Aero Vertical OSD on the Left Side)
+   VOLUME OSD BAR (Frutiger Aero Vertical OSD - 60% Height Responsive)
    =================================================================== */
 .osd-volume-popup {
     position: absolute;
     left: 36px;
     top: 50%;
     transform: translateY(-50%);
-    width: 72px;
-    padding: 16px 10px 14px 10px;
+    width: 68px;
+    height: 60%;
+    min-height: 200px;
+    max-height: 75%;
+    box-sizing: border-box;
+    padding: 16px 8px 14px 8px;
     background: linear-gradient(180deg, #1b4b9b 0%, #153f86 45%, #0e2f6c 52%, #123c82 100%);
     border: 2px solid rgba(255, 255, 255, 0.45);
-    border-radius: 26px;
+    border-radius: 24px;
     box-shadow: 0 14px 40px rgba(0, 0, 0, 0.75), inset 0 2px 3px rgba(255, 255, 255, 0.8), inset 0 -2px 3px rgba(0, 0, 0, 0.5);
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
     z-index: 28;
     overflow: hidden;
@@ -876,8 +881,10 @@ html, body {
     top: 0;
     left: -15%;
     width: 130%;
-    height: 46%;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.05) 100%);
+    height: 35%;
+    max-height: 140px;
+    min-height: 50px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.04) 100%);
     border-radius: 0 0 50% 50% / 0 0 22px 22px;
     pointer-events: none;
     z-index: 1;
@@ -894,6 +901,7 @@ html, body {
     position: relative;
     width: 44px;
     height: 44px;
+    flex-shrink: 0;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #ffffff 0%, #d8e3ed 45%, #7697b8 85%, #3c546e 100%);
     border: 1.5px solid rgba(255, 255, 255, 0.85);
@@ -911,13 +919,15 @@ html, body {
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.45));
 }
 
-/* Recessed 3D Metallic Channel Track */
+/* Recessed 3D Metallic Channel Track (Flex 1 to fill dynamic 60% height) */
 .osd-vol-bar-track {
     position: relative;
-    width: 18px;
-    height: 180px;
+    width: 16px;
+    flex: 1;
+    min-height: 70px;
+    box-sizing: border-box;
     background: #041024;
-    border-radius: 9px;
+    border-radius: 8px;
     border: 1.5px solid #14356e;
     overflow: hidden;
     box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.9), 0 1px 1px rgba(255, 255, 255, 0.35);
@@ -932,7 +942,7 @@ html, body {
     width: 100%;
     height: 70%;
     background: linear-gradient(90deg, #6eebe1 0%, #1585f1 45%, #0b3fa8 100%);
-    border-radius: 7px;
+    border-radius: 6px;
     box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), inset 1px 0 2px rgba(255, 255, 255, 0.5);
     transition: height 0.12s ease-out;
     position: relative;
@@ -954,9 +964,12 @@ html, body {
 /* Metallic Frutiger Aero Badge for Volume Text (matching .banner-middle-row) */
 .osd-vol-badge {
     position: relative;
-    min-width: 58px;
-    max-width: 58px;
-    padding: 4px 6px;
+    min-width: 56px;
+    max-width: 60px;
+    height: 24px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+    padding: 3px 4px;
     background: linear-gradient(180deg, #dcebfa 0%, #adcdeb 48%, #85b0df 52%, #b5d8f7 100%);
     border: 1px solid #14356e;
     border-radius: 10px;
@@ -1567,8 +1580,11 @@ html, body {
 
     .osd-volume-popup {
         left: 14px;
-        width: 54px;
-        padding: 10px 6px 10px 6px;
+        width: 52px;
+        height: 70%;
+        min-height: 120px;
+        max-height: 85%;
+        padding: 10px 5px 8px 5px;
         gap: 8px;
         border-radius: 26px;
     }
@@ -1576,6 +1592,7 @@ html, body {
     .osd-vol-icon-bubble {
         width: 34px;
         height: 34px;
+        flex-shrink: 0;
     }
 
     .osd-vol-icon-img {
@@ -1584,14 +1601,18 @@ html, body {
     }
 
     .osd-vol-bar-track {
-        height: 95px;
+        flex: 1;
+        min-height: 40px;
         width: 14px;
         border-radius: 7px;
     }
 
     .osd-vol-badge {
         min-width: 44px;
-        padding: 2px 4px;
+        max-width: 46px;
+        height: 20px;
+        flex-shrink: 0;
+        padding: 2px 3px;
         border-radius: 8px;
     }
 
