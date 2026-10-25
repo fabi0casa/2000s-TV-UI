@@ -52,6 +52,11 @@ class RetroTVController {
         this.remoteControl = document.getElementById('remote-control');
         this.floatingRemoteBtn = document.getElementById('floating-remote-btn');
         this.modalStream = document.getElementById('modal-stream');
+        this.rcLed = document.getElementById('rc-led');
+
+        // Remote LED Blinking State
+        this.isLedBlinking = false;
+        this.ledBlinkInterval = null;
 
         // Floating Remote Launcher State
         this.isRemoteMinimized = false;
@@ -72,6 +77,7 @@ class RetroTVController {
 
         // Tune to first channel (001 ARP-TV)
         this.tuneChannelByIndex(0, false);
+        this.updateLedState();
 
         // Bind Events
         this.bindKeyboard();
@@ -696,21 +702,90 @@ class RetroTVController {
     }
 
     /**
+     * Remote Control LED Visual & Blinking Management
+     */
+    updateLedState() {
+        const led = this.rcLed || document.getElementById('rc-led');
+        if (!led || this.isLedBlinking) return;
+
+        led.style.transition = 'all 0.2s';
+        if (this.isPowerOn) {
+            led.style.backgroundColor = '#265bec';
+            led.style.boxShadow = '0 0 10px #265bec';
+        } else {
+            led.style.backgroundColor = '#191921';
+            led.style.boxShadow = 'none';
+        }
+    }
+
+    startLedBlink() {
+        const led = this.rcLed || document.getElementById('rc-led');
+        if (!led) return;
+
+        this.isLedBlinking = true;
+        if (this.ledBlinkInterval) {
+            clearInterval(this.ledBlinkInterval);
+            this.ledBlinkInterval = null;
+        }
+
+        const setBlue = () => {
+            led.style.transition = 'none';
+            led.style.backgroundColor = '#265bec';
+            led.style.boxShadow = '0 0 10px #265bec';
+        };
+
+        const setOff = () => {
+            led.style.transition = 'none';
+            led.style.backgroundColor = '#191921';
+            led.style.boxShadow = 'none';
+        };
+
+        let isBlue = false;
+        if (this.isPowerOn) {
+            setOff();
+            isBlue = false;
+        } else {
+            setBlue();
+            isBlue = true;
+        }
+
+        this.ledBlinkInterval = setInterval(() => {
+            if (!this.isLedBlinking) return;
+            isBlue = !isBlue;
+            if (isBlue) {
+                setBlue();
+            } else {
+                setOff();
+            }
+        }, 80);
+    }
+
+    stopLedBlink() {
+        if (this.ledBlinkInterval) {
+            clearInterval(this.ledBlinkInterval);
+            this.ledBlinkInterval = null;
+        }
+        this.isLedBlinking = false;
+
+        setTimeout(() => {
+            if (!this.isLedBlinking) {
+                this.updateLedState();
+            }
+        }, 0);
+    }
+
+    /**
      * Power Toggle (Ligar / Desligar TV)
      */
     togglePower() {
         this.isPowerOn = !this.isPowerOn;
-        const led = document.getElementById('rc-led');
+        this.updateLedState();
 
         if (this.isPowerOn) {
-            if (led) led.style.backgroundColor = '#265bec';
-            if (led) led.style.boxShadow = '0 0 10px #265bec';
             this.tvCanvas.style.filter = 'none';
             this.tuneChannelByIndex(this.currentChannelIndex, true);
             this.showBanner(4000);
         } else {
-            if (led) led.style.backgroundColor = '#191921';
-            if (led) led.style.boxShadow = '0 0 8px #ff2a2a00';
             window.retroAudio.stopStaticNoise();
             window.retroAudio.playBeep('exit');
             this.hideBanner();
@@ -804,6 +879,27 @@ class RetroTVController {
      * Bind 2000s Satellite Remote Control Panel
      */
     bindRemote() {
+        // Remote LED blinking while pressing any remote button
+        if (this.remoteControl) {
+            this.remoteControl.addEventListener('pointerdown', (e) => {
+                if (e.button !== 0) return;
+                const btn = e.target.closest('button');
+                if (!btn || btn.id === 'btn-minimize-remote') return;
+                this.startLedBlink();
+            });
+
+            const stopRemoteBlink = () => {
+                if (this.isLedBlinking) {
+                    this.stopLedBlink();
+                }
+            };
+
+            window.addEventListener('pointerup', stopRemoteBlink);
+            window.addEventListener('pointercancel', stopRemoteBlink);
+            window.addEventListener('mouseup', stopRemoteBlink);
+            window.addEventListener('mouseleave', stopRemoteBlink);
+        }
+
         // Preload power-pressed image
         const preloadPowerPressed = new Image();
         preloadPowerPressed.src = 'icons/power-pressed.png';
