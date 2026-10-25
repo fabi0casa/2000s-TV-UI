@@ -20,6 +20,7 @@ class RetroTVController {
         // Banner State
         this.isBannerVisible = false;
         this.bannerTimeout = null;
+        this.bannerBrowsingIndex = 0;
 
         // Dialing State
         this.dialDigits = "";
@@ -223,6 +224,7 @@ class RetroTVController {
 
         this.prevChannelIndex = this.currentChannelIndex;
         this.currentChannelIndex = index;
+        this.bannerBrowsingIndex = index;
         const ch = this.channels[this.currentChannelIndex];
 
         // Sound effect
@@ -253,12 +255,7 @@ class RetroTVController {
         }
 
         // Update Top Banner Elements
-        document.getElementById('banner-ch-num').innerText = ch.id;
-        document.getElementById('banner-ch-code').innerText = ch.code;
-        document.getElementById('banner-prog-title').innerText = ch.title;
-        document.getElementById('banner-lang').innerText = ch.language;
-        document.getElementById('banner-timeslot').innerText = ch.timeSlot;
-        document.getElementById('banner-rating').innerText = ch.rating;
+        this.updateBannerForChannel(this.currentChannelIndex);
 
         // Show Info Banner
         this.showBanner(4500);
@@ -324,6 +321,9 @@ class RetroTVController {
     hideBanner() {
         this.channelBanner.classList.add('hidden');
         this.isBannerVisible = false;
+        // Reset inspected channel on the banner back to the active channel
+        this.bannerBrowsingIndex = this.currentChannelIndex;
+        this.updateBannerForChannel(this.currentChannelIndex);
         if (this.bannerTimeout) {
             clearTimeout(this.bannerTimeout);
             this.bannerTimeout = null;
@@ -333,10 +333,120 @@ class RetroTVController {
     toggleBanner() {
         if (this.isBannerVisible) {
             this.hideBanner();
-            window.retroAudio.playBeep('back');
+            if (window.retroAudio) {
+                window.retroAudio.playBeep('back');
+            }
         } else {
+            this.bannerBrowsingIndex = this.currentChannelIndex;
+            this.updateBannerForChannel(this.bannerBrowsingIndex);
             this.showBanner(5000);
-            window.retroAudio.playBeep('select');
+            if (window.retroAudio) {
+                window.retroAudio.playBeep('select');
+            }
+        }
+    }
+
+    /**
+     * Update banner text and metadata for a specific channel
+     */
+    updateBannerForChannel(index) {
+        if (!this.channels || this.channels.length === 0) return;
+        if (index < 0) index = this.channels.length - 1;
+        if (index >= this.channels.length) index = 0;
+
+        const ch = this.channels[index];
+        if (!ch) return;
+
+        const elNum = document.getElementById('banner-ch-num');
+        const elCode = document.getElementById('banner-ch-code');
+        const elTitle = document.getElementById('banner-prog-title');
+        const elLang = document.getElementById('banner-lang');
+        const elTimeslot = document.getElementById('banner-timeslot');
+        const elRating = document.getElementById('banner-rating');
+        const elFavTag = document.getElementById('banner-favorites-tag') || document.querySelector('.banner-favorites-tag');
+
+        if (elNum) elNum.innerText = ch.id;
+        if (elCode) elCode.innerText = ch.code;
+        if (elTitle) elTitle.innerText = ch.title;
+        if (elLang) elLang.innerText = ch.language || 'English';
+        if (elTimeslot) elTimeslot.innerText = ch.timeSlot || '';
+        if (elRating) elRating.innerText = ch.rating || 'NONE';
+
+        if (elFavTag) {
+            if (index !== this.currentChannelIndex) {
+                elFavTag.innerHTML = `<span>Favorites List: Channels</span> <span class="banner-tune-hint">• Pressione OK para assistir</span>`;
+            } else {
+                elFavTag.innerHTML = `<span>Favorites List: Channels</span>`;
+            }
+        }
+    }
+
+    /**
+     * Browse next/previous channel info on the banner without changing the TV channel
+     */
+    bannerBrowse(delta) {
+        if (!this.isPowerOn || !this.channels || this.channels.length === 0) return;
+
+        if (window.retroAudio) {
+            window.retroAudio.playBeep('nav');
+        }
+
+        this.bannerBrowsingIndex += delta;
+        if (this.bannerBrowsingIndex < 0) {
+            this.bannerBrowsingIndex = this.channels.length - 1;
+        } else if (this.bannerBrowsingIndex >= this.channels.length) {
+            this.bannerBrowsingIndex = 0;
+        }
+
+        this.updateBannerForChannel(this.bannerBrowsingIndex);
+        this.showBanner(5000);
+    }
+
+    /**
+     * Handle Left / Right navigation (D-pad & keyboard arrows)
+     */
+    handleLeftPress() {
+        if (this.isGuideOpen) {
+            this.guideMoveHorizontal(-1);
+        } else if (this.isBannerVisible) {
+            this.bannerBrowse(-1);
+        } else {
+            this.adjustVolume(-0.05);
+        }
+    }
+
+    handleRightPress() {
+        if (this.isGuideOpen) {
+            this.guideMoveHorizontal(1);
+        } else if (this.isBannerVisible) {
+            this.bannerBrowse(1);
+        } else {
+            this.adjustVolume(0.05);
+        }
+    }
+
+    /**
+     * Handle OK button press (Remote OK & Enter key)
+     */
+    handleOkPress() {
+        if (!this.isPowerOn) return;
+
+        if (!this.isBannerVisible) {
+            this.bannerBrowsingIndex = this.currentChannelIndex;
+            this.updateBannerForChannel(this.bannerBrowsingIndex);
+            this.showBanner(5000);
+            if (window.retroAudio) {
+                window.retroAudio.playBeep('select');
+            }
+        } else {
+            if (this.bannerBrowsingIndex !== this.currentChannelIndex) {
+                this.tuneChannelByIndex(this.bannerBrowsingIndex, true);
+            } else {
+                this.hideBanner();
+                if (window.retroAudio) {
+                    window.retroAudio.playBeep('back');
+                }
+            }
         }
     }
 
@@ -364,9 +474,13 @@ class RetroTVController {
 
     closeGuide() {
         if (!this.isGuideOpen) return;
-        window.retroAudio.playBeep('back');
+        if (window.retroAudio) {
+            window.retroAudio.playBeep('back');
+        }
         this.epgGuide.classList.add('hidden');
         this.isGuideOpen = false;
+        this.bannerBrowsingIndex = this.currentChannelIndex;
+        this.updateBannerForChannel(this.currentChannelIndex);
         this.showBanner(3500);
     }
 
@@ -823,13 +937,11 @@ class RetroTVController {
                     break;
                 case 'ArrowLeft':
                     e.preventDefault();
-                    if (this.isGuideOpen) this.guideMoveHorizontal(-1);
-                    else this.adjustVolume(-0.05);
+                    this.handleLeftPress();
                     break;
                 case 'ArrowRight':
                     e.preventDefault();
-                    if (this.isGuideOpen) this.guideMoveHorizontal(1);
-                    else this.adjustVolume(0.05);
+                    this.handleRightPress();
                     break;
                 case 'Enter':
                     e.preventDefault();
@@ -838,7 +950,7 @@ class RetroTVController {
                     } else if (this.isGuideOpen) {
                         this.guideSelectCurrent();
                     } else {
-                        this.toggleBanner();
+                        this.handleOkPress();
                     }
                     break;
                 case 'Escape':
@@ -945,17 +1057,15 @@ class RetroTVController {
             else this.channelDown();
         });
         document.getElementById('rc-left').addEventListener('click', () => {
-            if (this.isGuideOpen) this.guideMoveHorizontal(-1);
-            else this.adjustVolume(-0.05);
+            this.handleLeftPress();
         });
         document.getElementById('rc-right').addEventListener('click', () => {
-            if (this.isGuideOpen) this.guideMoveHorizontal(1);
-            else this.adjustVolume(0.05);
+            this.handleRightPress();
         });
         document.getElementById('rc-ok').addEventListener('click', () => {
             if (this.dialDigits.length > 0) this.confirmDial();
             else if (this.isGuideOpen) this.guideSelectCurrent();
-            else this.toggleBanner();
+            else this.handleOkPress();
         });
 
         // Rockers
@@ -1127,6 +1237,17 @@ class RetroTVController {
         document.getElementById('hint-mini-guide').addEventListener('click', () => this.tuneRandomChannel());
         document.getElementById('btn-banner-settings').addEventListener('click', () => this.openCustomStreamModal());
 
+        // Banner click interaction: tune to previewed channel when clicking banner
+        const bannerTopRow = document.querySelector('.banner-top-row');
+        if (bannerTopRow) {
+            bannerTopRow.addEventListener('click', (e) => {
+                if (e.target.closest('#btn-banner-settings')) return;
+                if (this.isBannerVisible && this.bannerBrowsingIndex !== this.currentChannelIndex) {
+                    this.handleOkPress();
+                }
+            });
+        }
+
         // EPG Guide Hints
         document.getElementById('epg-hint-red').addEventListener('click', () => {
             window.retroAudio.playBeep('nav');
@@ -1197,11 +1318,16 @@ class RetroTVController {
                 if (diffY > 0) this.channelUp();
                 else this.channelDown();
             } else if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
-                if (diffX > 0) this.adjustVolume(0.05);
-                else this.adjustVolume(-0.05);
+                if (this.isBannerVisible) {
+                    if (diffX > 0) this.bannerBrowse(1);
+                    else this.bannerBrowse(-1);
+                } else {
+                    if (diffX > 0) this.adjustVolume(0.05);
+                    else this.adjustVolume(-0.05);
+                }
             } else if (Math.abs(diffY) < 15 && Math.abs(diffX) < 15) {
-                // Short tap -> Toggle Info Banner
-                this.toggleBanner();
+                // Short tap -> OK action (open banner, tune or hide)
+                this.handleOkPress();
             }
         });
     }

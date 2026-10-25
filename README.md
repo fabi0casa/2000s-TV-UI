@@ -20,6 +20,10 @@ Desenvolvido em **HTML5, CSS3 puro e JavaScript vanilla**, totalmente responsivo
      - Linha 1: Logotipo da emissora, número do canal (ex: `001`), sigla (`ARP-TV`), título do programa em exibição e faixa de áudio.
      - Linha 2: Barra metálica com data/hora em tempo real, intervalo de exibição, classificação indicativa (`TV-PG`, etc.) e ícones 3D.
      - Linha 3: Barra inferior com favoritos e atalhos coloridos do controle remoto.
+   - **Navegação de canais no Banner (estilo decodificador real)**:
+     - Ao abrir o banner com **OK** ou **INFO**, pressione as setas **◀ / ▶ (Esquerda / Direita)** para folhear as informações dos outros canais em ordem sem trocar a transmissão atual.
+     - Se o tempo do banner expirar, nada acontece e o canal atual é mantido.
+     - Se pressionar **OK** enquanto navega nas informações de outro canal, a TV sintoniza imediatamente no canal selecionado!
    - Desliza suavemente na troca de canais e desaparece automaticamente após alguns segundos.
 
 3. **Guia de Programação Completo (Full Screen EPG)**:
@@ -59,8 +63,8 @@ Desenvolvido em **HTML5, CSS3 puro e JavaScript vanilla**, totalmente responsivo
 | Tecla | Ação |
 | :--- | :--- |
 | **▲ / ▼ (Setas Cima / Baixo)** | Trocar de canal (ou navegar pelas linhas do Guia) |
-| **◀ / ▶ (Setas Esquerda / Direita)** | Ajustar Volume (ou navegar pelos horários no Guia) |
-| **Enter** | Confirmar / Abrir ou fechar barra de informações |
+| **◀ / ▶ (Setas Esquerda / Direita)** | Navegar canais na barra Info (ou ajustar Volume / horários no Guia) |
+| **Enter / OK** | Sintonizar canal pré-visualizado no Banner / Abrir ou fechar Info |
 | **G** | Abrir / Fechar Guia Completo (EPG) |
 | **I** | Exibir / Ocultar Banner de Informações (INFO) |
 | **M** | Abrir / Fechar Mini Guia Lateral |
