@@ -955,6 +955,7 @@ html, body {
 .osd-vol-badge {
     position: relative;
     min-width: 58px;
+    max-width: 58px;
     padding: 4px 6px;
     background: linear-gradient(180deg, #dcebfa 0%, #adcdeb 48%, #85b0df 52%, #b5d8f7 100%);
     border: 1px solid #14356e;
