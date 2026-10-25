@@ -765,15 +765,17 @@ class RetroTVController {
 
     showVolumeOSD() {
         const pct = Math.round(this.volume * 100);
-        this.volBarFill.style.width = `${pct}%`;
+        this.volBarFill.style.height = `${pct}%`;
         
         const volIcon = document.getElementById('vol-icon');
         if (this.isMuted || pct === 0) {
             this.volText.innerText = "MUTE";
+            this.volText.classList.add('muted');
             if (volIcon) volIcon.src = "icons/volume-zero.png";
-            this.volBarFill.style.width = '0%';
+            this.volBarFill.style.height = '0%';
         } else {
             this.volText.innerText = `VOL ${pct}%`;
+            this.volText.classList.remove('muted');
             if (volIcon) {
                 if (pct <= 33) {
                     volIcon.src = "icons/volume-min.png";

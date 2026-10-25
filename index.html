@@ -265,13 +265,17 @@
             </div>
 
             <!-- ========================================================
-                 OSD VOLUME BAR POPUP
+                 OSD VOLUME BAR POPUP (Frutiger Aero Vertical OSD)
                  ======================================================== -->
             <div id="osd-volume-box" class="osd-volume-popup hidden">
-                <img id="vol-icon" src="icons/volume-max.png" alt="Volume" class="osd-vol-icon-img">
-                <span id="vol-text" style="font-size: 16px; font-weight: 800; color: #ffffff;">VOL 70%</span>
+                <div class="osd-vol-icon-bubble">
+                    <img id="vol-icon" src="icons/volume-max.png" alt="Volume" class="osd-vol-icon-img">
+                </div>
                 <div class="osd-vol-bar-track">
                     <div id="vol-bar-fill" class="osd-vol-bar-fill"></div>
+                </div>
+                <div class="osd-vol-badge">
+                    <span id="vol-text" class="osd-vol-text">VOL 70%</span>
                 </div>
             </div>
         </div>
