@@ -62,8 +62,8 @@ Desenvolvido em **HTML5, CSS3 puro e JavaScript vanilla**, totalmente responsivo
 
 | Tecla | Ação |
 | :--- | :--- |
-| **▲ / ▼ (Setas Cima / Baixo)** | Trocar de canal (ou navegar pelas linhas do Guia) |
-| **◀ / ▶ (Setas Esquerda / Direita)** | Navegar canais na barra Info (ou ajustar Volume / horários no Guia) |
+| **▲ / ▼ (Setas Cima / Baixo)** | Ajustar Volume (ou navegar pelas linhas do Guia e Mini Guia) |
+| **◀ / ▶ (Setas Esquerda / Direita)** | Trocar de canal / Navegar canais na barra Info (ou navegar horários no Guia) |
 | **Enter / OK** | Sintonizar canal pré-visualizado no Banner / Abrir ou fechar Info |
 | **G** | Abrir / Fechar Guia Completo (EPG) |
 | **I** | Exibir / Ocultar Banner de Informações (INFO) |
@@ -76,8 +76,8 @@ Desenvolvido em **HTML5, CSS3 puro e JavaScript vanilla**, totalmente responsivo
 ---
 
 ## 📱 Suporte a Telas Touch / Celular
-- Deslizar o dedo para **cima/baixo** na tela da TV: Troca de canal.
-- Deslizar o dedo para os **lados**: Altera o volume.
+- Deslizar o dedo para **cima/baixo** na tela da TV: Altera o volume (ou navega no Guia).
+- Deslizar o dedo para os **lados**: Troca de canal (ou navega no Banner de Informações e horários do Guia).
 - Toque rápido na tela da TV: Abre/fecha o banner de informações.
 - Uso interativo através do controle remoto virtual integrado.
 

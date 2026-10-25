@@ -403,25 +403,55 @@ class RetroTVController {
     }
 
     /**
+     * Handle Up navigation (D-pad & keyboard arrow)
+     */
+    handleUpPress() {
+        if (this.isGuideOpen) {
+            this.guideMoveVertical(-1);
+        } else if (this.isMiniGuideOpen) {
+            this.channelUp();
+        } else {
+            this.adjustVolume(0.05);
+        }
+    }
+
+    /**
+     * Handle Down navigation (D-pad & keyboard arrow)
+     */
+    handleDownPress() {
+        if (this.isGuideOpen) {
+            this.guideMoveVertical(1);
+        } else if (this.isMiniGuideOpen) {
+            this.channelDown();
+        } else {
+            this.adjustVolume(-0.05);
+        }
+    }
+
+    /**
      * Handle Left / Right navigation (D-pad & keyboard arrows)
      */
     handleLeftPress() {
         if (this.isGuideOpen) {
             this.guideMoveHorizontal(-1);
+        } else if (this.isMiniGuideOpen) {
+            this.adjustVolume(-0.05);
         } else if (this.isBannerVisible) {
             this.bannerBrowse(-1);
         } else {
-            this.adjustVolume(-0.05);
+            this.channelDown();
         }
     }
 
     handleRightPress() {
         if (this.isGuideOpen) {
             this.guideMoveHorizontal(1);
+        } else if (this.isMiniGuideOpen) {
+            this.adjustVolume(0.05);
         } else if (this.isBannerVisible) {
             this.bannerBrowse(1);
         } else {
-            this.adjustVolume(0.05);
+            this.channelUp();
         }
     }
 
@@ -927,13 +957,11 @@ class RetroTVController {
             switch (e.key) {
                 case 'ArrowUp':
                     e.preventDefault();
-                    if (this.isGuideOpen) this.guideMoveVertical(-1);
-                    else this.channelUp();
+                    this.handleUpPress();
                     break;
                 case 'ArrowDown':
                     e.preventDefault();
-                    if (this.isGuideOpen) this.guideMoveVertical(1);
-                    else this.channelDown();
+                    this.handleDownPress();
                     break;
                 case 'ArrowLeft':
                     e.preventDefault();
@@ -1049,12 +1077,10 @@ class RetroTVController {
 
         // D-Pad
         document.getElementById('rc-up').addEventListener('click', () => {
-            if (this.isGuideOpen) this.guideMoveVertical(-1);
-            else this.channelUp();
+            this.handleUpPress();
         });
         document.getElementById('rc-down').addEventListener('click', () => {
-            if (this.isGuideOpen) this.guideMoveVertical(1);
-            else this.channelDown();
+            this.handleDownPress();
         });
         document.getElementById('rc-left').addEventListener('click', () => {
             this.handleLeftPress();
@@ -1315,16 +1341,11 @@ class RetroTVController {
             const diffX = touchStartX - e.changedTouches[0].clientX;
 
             if (Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX)) {
-                if (diffY > 0) this.channelUp();
-                else this.channelDown();
+                if (diffY > 0) this.handleUpPress();
+                else this.handleDownPress();
             } else if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
-                if (this.isBannerVisible) {
-                    if (diffX > 0) this.bannerBrowse(1);
-                    else this.bannerBrowse(-1);
-                } else {
-                    if (diffX > 0) this.adjustVolume(0.05);
-                    else this.adjustVolume(-0.05);
-                }
+                if (diffX > 0) this.handleRightPress();
+                else this.handleLeftPress();
             } else if (Math.abs(diffY) < 15 && Math.abs(diffX) < 15) {
                 // Short tap -> OK action (open banner, tune or hide)
                 this.handleOkPress();
