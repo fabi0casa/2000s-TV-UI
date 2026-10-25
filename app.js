@@ -54,6 +54,19 @@ class RetroTVController {
         this.floatingRemoteBtn = document.getElementById('floating-remote-btn');
         this.modalStream = document.getElementById('modal-stream');
         this.rcLed = document.getElementById('rc-led');
+        this.youtubeContainer = document.getElementById('youtube-container');
+        this.osdMediaBadge = document.getElementById('osd-media-badge');
+        this.osdMediaIcon = document.getElementById('osd-media-icon');
+        this.osdMediaText = document.getElementById('osd-media-text');
+
+        // Media & YouTube Player State
+        this.currentMediaMode = 'canvas'; // 'canvas' | 'video' | 'youtube'
+        this.ytPlayer = null;
+        this.isYTReady = false;
+        this.activeYouTubeId = null;
+        this.pendingYouTubeId = null;
+        this.mediaOSDTimeout = null;
+        this.hls = null;
 
         // Remote LED Blinking State
         this.isLedBlinking = false;
@@ -122,6 +135,9 @@ class RetroTVController {
         header.addEventListener('mousedown', (e) => {
             if (e.target.id === 'btn-minimize-remote') return;
             isDragging = true;
+            if (this.youtubeContainer) {
+                this.youtubeContainer.style.pointerEvents = 'none';
+            }
             const rect = remote.getBoundingClientRect();
             grabOffsetX = e.clientX - rect.left;
             grabOffsetY = e.clientY - rect.top;
@@ -148,6 +164,9 @@ class RetroTVController {
             if (isDragging) {
                 isDragging = false;
                 document.body.style.userSelect = '';
+                if (this.youtubeContainer) {
+                    this.youtubeContainer.style.pointerEvents = 'auto';
+                }
             }
         };
 
@@ -232,12 +251,33 @@ class RetroTVController {
             window.retroAudio.playChannelSwitch();
         }
 
-        // Check if custom video or canvas feed
-        if (this.customVideo && this.customVideo.src && ch.type === 'custom') {
+        // Check if youtube, custom video, or procedural canvas feed
+        if (ch.type === 'youtube') {
+            this.currentMediaMode = 'youtube';
+            this.tvCanvas.style.display = 'none';
+            if (this.customVideo) {
+                this.customVideo.pause();
+                this.customVideo.style.display = 'none';
+            }
+            if (this.youtubeContainer) {
+                this.youtubeContainer.style.display = 'block';
+            }
+            this.playYouTube();
+        } else if (ch.type === 'custom' && this.customVideo && this.customVideo.src) {
+            this.currentMediaMode = 'video';
+            this.pauseYouTube();
+            if (this.youtubeContainer) {
+                this.youtubeContainer.style.display = 'none';
+            }
             this.tvCanvas.style.display = 'none';
             this.customVideo.style.display = 'block';
             this.customVideo.play().catch(() => {});
         } else {
+            this.currentMediaMode = 'canvas';
+            this.pauseYouTube();
+            if (this.youtubeContainer) {
+                this.youtubeContainer.style.display = 'none';
+            }
             if (this.customVideo) {
                 this.customVideo.pause();
                 this.customVideo.style.display = 'none';
@@ -436,6 +476,12 @@ class RetroTVController {
             this.guideMoveHorizontal(-1);
         } else if (this.isMiniGuideOpen) {
             this.adjustVolume(-0.05);
+        } else if (this.isBannerVisible && this.bannerBrowsingIndex !== this.currentChannelIndex) {
+            this.bannerBrowse(-1);
+        } else if (this.currentMediaMode === 'youtube') {
+            this.seekYouTube(-10);
+        } else if (this.currentMediaMode === 'video') {
+            this.seekCustomVideo(-10);
         } else if (this.isBannerVisible) {
             this.bannerBrowse(-1);
         } else {
@@ -448,6 +494,12 @@ class RetroTVController {
             this.guideMoveHorizontal(1);
         } else if (this.isMiniGuideOpen) {
             this.adjustVolume(0.05);
+        } else if (this.isBannerVisible && this.bannerBrowsingIndex !== this.currentChannelIndex) {
+            this.bannerBrowse(1);
+        } else if (this.currentMediaMode === 'youtube') {
+            this.seekYouTube(10);
+        } else if (this.currentMediaMode === 'video') {
+            this.seekCustomVideo(10);
         } else if (this.isBannerVisible) {
             this.bannerBrowse(1);
         } else {
@@ -461,6 +513,26 @@ class RetroTVController {
     handleOkPress() {
         if (!this.isPowerOn) return;
 
+        // In media mode (YouTube or Custom Video), OK toggles Play / Pause unless user is actively browsing another channel in the banner
+        if (this.currentMediaMode === 'youtube') {
+            if (this.isBannerVisible && this.bannerBrowsingIndex !== this.currentChannelIndex) {
+                this.tuneChannelByIndex(this.bannerBrowsingIndex, true);
+                return;
+            }
+            this.toggleYouTubePlayPause();
+            return;
+        }
+
+        if (this.currentMediaMode === 'video') {
+            if (this.isBannerVisible && this.bannerBrowsingIndex !== this.currentChannelIndex) {
+                this.tuneChannelByIndex(this.bannerBrowsingIndex, true);
+                return;
+            }
+            this.toggleCustomVideoPlayPause();
+            return;
+        }
+
+        // Standard TV channel behavior
         if (!this.isBannerVisible) {
             this.bannerBrowsingIndex = this.currentChannelIndex;
             this.updateBannerForChannel(this.bannerBrowsingIndex);
@@ -751,6 +823,23 @@ class RetroTVController {
         this.volume = Math.max(0, Math.min(1, this.volume + delta));
         window.retroAudio.setVolume(this.volume);
         window.retroAudio.setMute(false);
+
+        // Sync to custom video
+        if (this.customVideo) {
+            this.customVideo.volume = this.volume;
+            this.customVideo.muted = false;
+        }
+
+        // Sync to YouTube player
+        if (this.ytPlayer && typeof this.ytPlayer.setVolume === 'function') {
+            try {
+                this.ytPlayer.setVolume(Math.round(this.volume * 100));
+                if (typeof this.ytPlayer.unMute === 'function') {
+                    this.ytPlayer.unMute();
+                }
+            } catch (e) {}
+        }
+
         this.showVolumeOSD();
         window.retroAudio.playBeep('nav');
     }
@@ -759,6 +848,26 @@ class RetroTVController {
         if (!this.isPowerOn) return;
         this.isMuted = !this.isMuted;
         window.retroAudio.setMute(this.isMuted);
+
+        // Sync to custom video
+        if (this.customVideo) {
+            this.customVideo.muted = this.isMuted;
+        }
+
+        // Sync to YouTube player
+        if (this.ytPlayer) {
+            try {
+                if (this.isMuted && typeof this.ytPlayer.mute === 'function') {
+                    this.ytPlayer.mute();
+                } else if (!this.isMuted && typeof this.ytPlayer.unMute === 'function') {
+                    this.ytPlayer.unMute();
+                    if (typeof this.ytPlayer.setVolume === 'function') {
+                        this.ytPlayer.setVolume(Math.round(this.volume * 100));
+                    }
+                }
+            } catch (e) {}
+        }
+
         this.showVolumeOSD();
         window.retroAudio.playBeep('select');
     }
@@ -929,6 +1038,8 @@ class RetroTVController {
 
         if (this.isPowerOn) {
             this.tvCanvas.style.filter = 'none';
+            if (this.youtubeContainer) this.youtubeContainer.style.visibility = 'visible';
+            if (this.customVideo) this.customVideo.style.visibility = 'visible';
             this.tuneChannelByIndex(this.currentChannelIndex, true);
             this.showBanner(4000);
         } else {
@@ -937,6 +1048,14 @@ class RetroTVController {
             this.hideBanner();
             this.closeGuide();
             this.closeMiniGuide();
+            this.modalStream.classList.remove('active');
+
+            // Pause media and hide video surfaces
+            this.pauseYouTube();
+            if (this.customVideo) this.customVideo.pause();
+            if (this.youtubeContainer) this.youtubeContainer.style.visibility = 'hidden';
+            if (this.customVideo) this.customVideo.style.visibility = 'hidden';
+
             // Black out canvas
             const ctx = this.tvCanvas.getContext('2d');
             ctx.fillStyle = '#000000';
@@ -950,6 +1069,21 @@ class RetroTVController {
      */
     bindKeyboard() {
         window.addEventListener('keydown', (e) => {
+            // Ignore keybindings if user is typing in input or textarea
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+                if (e.key === 'Escape') {
+                    this.modalStream.classList.remove('active');
+                }
+                return;
+            }
+
+            // Spacebar: Play / Pause in media mode
+            if (e.code === 'Space' || e.key === ' ') {
+                e.preventDefault();
+                this.handleOkPress();
+                return;
+            }
+
             // Numbers 0-9
             if (e.key >= '0' && e.key <= '9') {
                 this.dialDigit(e.key);
@@ -985,9 +1119,36 @@ class RetroTVController {
                     break;
                 case 'Escape':
                     e.preventDefault();
-                    if (this.isGuideOpen) this.closeGuide();
-                    else if (this.isMiniGuideOpen) this.closeMiniGuide();
-                    else this.hideBanner();
+                    if (this.modalStream.classList.contains('active')) {
+                        this.modalStream.classList.remove('active');
+                    } else if (this.isGuideOpen) {
+                        this.closeGuide();
+                    } else if (this.isMiniGuideOpen) {
+                        this.closeMiniGuide();
+                    } else {
+                        this.hideBanner();
+                    }
+                    break;
+                case 'k':
+                case 'K':
+                    if (this.currentMediaMode === 'youtube' || this.currentMediaMode === 'video') {
+                        e.preventDefault();
+                        this.handleOkPress();
+                    }
+                    break;
+                case 'j':
+                case 'J':
+                    if (this.currentMediaMode === 'youtube' || this.currentMediaMode === 'video') {
+                        e.preventDefault();
+                        this.handleLeftPress();
+                    }
+                    break;
+                case 'l':
+                case 'L':
+                    if (this.currentMediaMode === 'youtube' || this.currentMediaMode === 'video') {
+                        e.preventDefault();
+                        this.handleRightPress();
+                    }
                     break;
                 case 'g':
                 case 'G':
@@ -1289,41 +1450,507 @@ class RetroTVController {
         document.getElementById('epg-hint-blue').addEventListener('click', () => this.closeGuide());
 
         // Custom Stream Modal actions
-        document.getElementById('btn-cancel-stream').addEventListener('click', () => {
-            this.modalStream.classList.remove('active');
-        });
+        const btnCancel = document.getElementById('btn-cancel-stream');
+        if (btnCancel) {
+            btnCancel.addEventListener('click', () => {
+                this.modalStream.classList.remove('active');
+            });
+        }
 
-        document.getElementById('btn-load-stream').addEventListener('click', () => {
-            const input = document.getElementById('stream-url-input');
-            const url = input.value.trim();
+        const btnClear = document.getElementById('btn-clear-stream');
+        const inputUrl = document.getElementById('stream-url-input');
+        if (btnClear && inputUrl) {
+            btnClear.addEventListener('click', () => {
+                inputUrl.value = '';
+                inputUrl.focus();
+            });
+        }
+
+        const handleConfirmLoad = () => {
+            if (!inputUrl) return;
+            const url = inputUrl.value.trim();
             if (url) {
                 this.loadCustomStream(url);
+                this.modalStream.classList.remove('active');
             }
-            this.modalStream.classList.remove('active');
+        };
+
+        const btnLoad = document.getElementById('btn-load-stream');
+        if (btnLoad) {
+            btnLoad.addEventListener('click', handleConfirmLoad);
+        }
+
+        if (inputUrl) {
+            inputUrl.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleConfirmLoad();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    this.modalStream.classList.remove('active');
+                }
+            });
+        }
+
+        // Quick suggestions in modal
+        document.querySelectorAll('.btn-quick-tag').forEach(tagBtn => {
+            tagBtn.addEventListener('click', () => {
+                const url = tagBtn.getAttribute('data-url');
+                if (url) {
+                    if (inputUrl) inputUrl.value = url;
+                    this.loadCustomStream(url);
+                    this.modalStream.classList.remove('active');
+                }
+            });
         });
     }
 
     /**
-     * Open custom IPTV / Video modal
+     * Open custom IPTV / Video / YouTube modal
      */
     openCustomStreamModal() {
         window.retroAudio.playBeep('select');
         this.modalStream.classList.add('active');
+        const inputUrl = document.getElementById('stream-url-input');
+        if (inputUrl) {
+            setTimeout(() => {
+                inputUrl.focus();
+                inputUrl.select();
+            }, 50);
+        }
     }
 
-    loadCustomStream(url) {
-        if (!this.customVideo) return;
-        this.customVideo.src = url;
-        this.customVideo.style.display = 'block';
+    /**
+     * Extract 11-char YouTube Video ID from any YouTube URL
+     */
+    extractYouTubeVideoId(url) {
+        if (!url) return null;
+        url = url.trim();
+
+        // Direct 11-char ID
+        if (/^[a-zA-Z0-9_-]{11}$/.test(url)) {
+            return url;
+        }
+
+        // Standard YouTube URL formats
+        const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts|live)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i;
+        const match = url.match(regex);
+        return match ? match[1] : null;
+    }
+
+    /**
+     * Called when YouTube IFrame API is loaded
+     */
+    onYouTubeAPIReady() {
+        this.isYTReady = true;
+        if (this.pendingYouTubeId) {
+            const vid = this.pendingYouTubeId;
+            this.pendingYouTubeId = null;
+            this.loadYouTube(vid);
+        }
+    }
+
+    /**
+     * Initialize YouTube Player IFrame instance
+     */
+    initYouTubePlayer(videoId) {
+        if (!window.YT || !window.YT.Player) {
+            this.pendingYouTubeId = videoId;
+            return;
+        }
+
+        if (this.youtubeContainer) {
+            this.youtubeContainer.style.display = 'block';
+        }
+
+        this.ytPlayer = new YT.Player('youtube-player', {
+            width: '100%',
+            height: '100%',
+            videoId: videoId,
+            playerVars: {
+                autoplay: 1,
+                controls: 1,
+                enablejsapi: 1,
+                rel: 0,
+                modestbranding: 1,
+                playsinline: 1,
+                iv_load_policy: 3
+            },
+            events: {
+                onReady: (e) => {
+                    this.isYTReady = true;
+                    this.syncYouTubeVolume();
+                    e.target.playVideo();
+                    this.updateYouTubeMetadata();
+                },
+                onStateChange: (e) => {
+                    this.onYouTubeStateChange(e);
+                },
+                onError: (e) => {
+                    this.onYouTubeError(e);
+                }
+            }
+        });
+    }
+
+    /**
+     * Load and embed a YouTube Video
+     */
+    loadYouTube(videoId) {
+        this.currentMediaMode = 'youtube';
+        this.activeYouTubeId = videoId;
+
+        // Hide canvas and pause custom video
         this.tvCanvas.style.display = 'none';
-        this.customVideo.play().catch(e => {
-            alert('Não foi possível carregar a URL fornecida: ' + e.message);
+        window.retroAudio.stopStaticNoise();
+        if (this.customVideo) {
+            this.customVideo.pause();
+            this.customVideo.style.display = 'none';
+        }
+
+        if (this.youtubeContainer) {
+            this.youtubeContainer.style.display = 'block';
+        }
+
+        if (this.ytPlayer && typeof this.ytPlayer.loadVideoById === 'function') {
+            this.ytPlayer.loadVideoById(videoId);
+            this.ytPlayer.playVideo();
+            this.syncYouTubeVolume();
+            this.updateYouTubeMetadata();
+        } else {
+            this.initYouTubePlayer(videoId);
+        }
+
+        // Register or update Channel 999 for YouTube
+        this.registerOrUpdateChannel({
+            id: "999",
+            number: 999,
+            code: "YOUTUBE",
+            name: "YouTube HD",
+            title: "Carregando YouTube...",
+            timeSlot: "Vídeo On-Demand",
+            language: "Stereo HD",
+            rating: "TV-PG",
+            category: "Vídeo Online",
+            description: "Transmissão reproduzida via YouTube Embed. Use o controle remoto (OK: Play/Pause, ◀/▶: -/+10s, VOL: Volume, EXIT: Voltar).",
+            type: "youtube",
+            youtubeId: videoId
         });
 
-        // Add to channel list or set banner
-        document.getElementById('banner-prog-title').innerText = "Transmissão Personalizada IPTV";
-        document.getElementById('banner-ch-code').innerText = "IPTV-STREAM";
+        const chIdx = this.channels.findIndex(c => c.id === "999" || c.number === 999);
+        if (chIdx !== -1) {
+            this.currentChannelIndex = chIdx;
+            this.bannerBrowsingIndex = chIdx;
+            this.updateMiniGuideHighlight();
+        }
+
+        // Fetch oEmbed title & author for immediate banner display
+        fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.title) {
+                    this.updateYouTubeMetadata(data.title, data.author_name);
+                }
+            })
+            .catch(() => {});
+
+        this.updateBannerForChannel(this.currentChannelIndex);
         this.showBanner(5000);
+        this.showMediaOSD('▶', 'YOUTUBE CONECTADO');
+    }
+
+    onYouTubeStateChange(e) {
+        if (e.data === 1) { // PLAYING
+            if (!this.isPowerOn) {
+                this.pauseYouTube();
+                return;
+            }
+            this.updateYouTubeMetadata();
+        } else if (e.data === 0) { // ENDED
+            this.showMediaOSD('⏹', 'VÍDEO CONCLUÍDO');
+        }
+    }
+
+    onYouTubeError(e) {
+        console.warn('YouTube Player error code:', e.data);
+        let msg = 'Erro ao carregar o vídeo do YouTube.';
+        if (e.data === 101 || e.data === 150) {
+            msg = 'O autor deste vídeo não permite reprodução incorporada em sites externos.';
+        } else if (e.data === 100) {
+            msg = 'Vídeo não encontrado ou privado no YouTube.';
+        } else if (e.data === 2) {
+            msg = 'Link ou ID de vídeo do YouTube inválido.';
+        }
+        alert(msg);
+        this.showMediaOSD('✕', 'ERRO NO VÍDEO');
+    }
+
+    updateYouTubeMetadata(customTitle, customAuthor) {
+        let title = customTitle;
+        let author = customAuthor;
+
+        if (this.ytPlayer && typeof this.ytPlayer.getVideoData === 'function') {
+            try {
+                const data = this.ytPlayer.getVideoData();
+                if (data) {
+                    if (!title && data.title) title = data.title;
+                    if (!author && data.author) author = data.author;
+                }
+            } catch (e) {}
+        }
+
+        if (!title && this.activeYouTubeId) {
+            title = `YouTube: ${this.activeYouTubeId}`;
+        }
+
+        let durStr = "Vídeo On-Demand";
+        if (this.ytPlayer && typeof this.ytPlayer.getDuration === 'function') {
+            try {
+                const dur = this.ytPlayer.getDuration();
+                const cur = this.ytPlayer.getCurrentTime();
+                if (dur > 0) {
+                    durStr = `${this.formatDuration(cur)} / ${this.formatDuration(dur)}`;
+                }
+            } catch (e) {}
+        }
+
+        // Update in channels list
+        const ch = this.channels.find(c => c.type === 'youtube' || c.id === '999');
+        if (ch) {
+            if (title) ch.title = title;
+            if (author) ch.language = author;
+            if (durStr) ch.timeSlot = durStr;
+            this.buildMiniGuide();
+        }
+
+        if (this.currentMediaMode === 'youtube' && this.channels[this.currentChannelIndex]?.type === 'youtube') {
+            const elTitle = document.getElementById('banner-prog-title');
+            const elCode = document.getElementById('banner-ch-code');
+            const elLang = document.getElementById('banner-lang');
+            const elTimeslot = document.getElementById('banner-timeslot');
+            const elFavTag = document.getElementById('banner-favorites-tag');
+
+            if (elTitle && title) elTitle.innerText = title;
+            if (elCode) elCode.innerText = "YOUTUBE";
+            if (elLang && author) elLang.innerText = author;
+            if (elTimeslot && durStr) elTimeslot.innerText = durStr;
+            if (elFavTag) {
+                elFavTag.innerHTML = `<span>YouTube • [OK] Play/Pause • [◀/▶] -/+10s • [VOL] Volume</span>`;
+            }
+        }
+    }
+
+    formatDuration(seconds) {
+        if (isNaN(seconds) || seconds < 0) return '0:00';
+        const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+        const m = Math.floor((seconds / 60) % 60);
+        const h = Math.floor(seconds / 3600);
+        if (h > 0) {
+            return `${h}:${m.toString().padStart(2, '0')}:${s}`;
+        }
+        return `${m}:${s}`;
+    }
+
+    registerOrUpdateChannel(newChannel) {
+        const existingIdx = this.channels.findIndex(c => c.id === newChannel.id || c.number === newChannel.number);
+        if (existingIdx !== -1) {
+            this.channels[existingIdx] = Object.assign(this.channels[existingIdx], newChannel);
+        } else {
+            this.channels.push(newChannel);
+        }
+        this.buildEPGGrid();
+        this.buildMiniGuide();
+    }
+
+    showMediaOSD(icon, text) {
+        const badge = this.osdMediaBadge || document.getElementById('osd-media-badge');
+        const iconEl = this.osdMediaIcon || document.getElementById('osd-media-icon');
+        const textEl = this.osdMediaText || document.getElementById('osd-media-text');
+        if (!badge || !iconEl || !textEl) return;
+
+        iconEl.innerText = icon;
+        textEl.innerText = text;
+        badge.classList.remove('hidden');
+
+        if (this.mediaOSDTimeout) clearTimeout(this.mediaOSDTimeout);
+        this.mediaOSDTimeout = setTimeout(() => {
+            badge.classList.add('hidden');
+        }, 1800);
+    }
+
+    toggleYouTubePlayPause() {
+        if (!this.ytPlayer || typeof this.ytPlayer.getPlayerState !== 'function') return;
+        const state = this.ytPlayer.getPlayerState();
+        if (state === 1) { // PLAYING
+            this.ytPlayer.pauseVideo();
+            this.showMediaOSD('❚❚', 'PAUSADO');
+            if (window.retroAudio) window.retroAudio.playBeep('nav');
+        } else {
+            this.ytPlayer.playVideo();
+            this.showMediaOSD('▶', 'REPRODUZINDO');
+            if (window.retroAudio) window.retroAudio.playBeep('select');
+        }
+        this.updateYouTubeMetadata();
+    }
+
+    toggleCustomVideoPlayPause() {
+        if (!this.customVideo) return;
+        if (this.customVideo.paused) {
+            this.customVideo.play().catch(() => {});
+            this.showMediaOSD('▶', 'REPRODUZINDO');
+            if (window.retroAudio) window.retroAudio.playBeep('select');
+        } else {
+            this.customVideo.pause();
+            this.showMediaOSD('❚❚', 'PAUSADO');
+            if (window.retroAudio) window.retroAudio.playBeep('nav');
+        }
+    }
+
+    seekYouTube(deltaSeconds) {
+        if (!this.ytPlayer || typeof this.ytPlayer.getCurrentTime !== 'function') return;
+        const cur = this.ytPlayer.getCurrentTime() || 0;
+        const dur = this.ytPlayer.getDuration() || 0;
+        const target = Math.max(0, Math.min(dur || Infinity, cur + deltaSeconds));
+        this.ytPlayer.seekTo(target, true);
+
+        const sign = deltaSeconds > 0 ? `+${deltaSeconds}s` : `${deltaSeconds}s`;
+        const icon = deltaSeconds > 0 ? '⏩' : '⏪';
+        const timeStr = this.formatDuration(target);
+        this.showMediaOSD(icon, `${sign} (${timeStr})`);
+        if (window.retroAudio) window.retroAudio.playBeep('nav');
+        this.updateYouTubeMetadata();
+    }
+
+    seekCustomVideo(deltaSeconds) {
+        if (!this.customVideo) return;
+        const cur = this.customVideo.currentTime || 0;
+        const dur = this.customVideo.duration || 0;
+        const target = Math.max(0, Math.min(dur || Infinity, cur + deltaSeconds));
+        this.customVideo.currentTime = target;
+
+        const sign = deltaSeconds > 0 ? `+${deltaSeconds}s` : `${deltaSeconds}s`;
+        const icon = deltaSeconds > 0 ? '⏩' : '⏪';
+        const timeStr = this.formatDuration(target);
+        this.showMediaOSD(icon, `${sign} (${timeStr})`);
+        if (window.retroAudio) window.retroAudio.playBeep('nav');
+    }
+
+    pauseYouTube() {
+        if (this.ytPlayer && typeof this.ytPlayer.pauseVideo === 'function') {
+            try { this.ytPlayer.pauseVideo(); } catch (e) {}
+        }
+    }
+
+    playYouTube() {
+        if (this.ytPlayer && typeof this.ytPlayer.playVideo === 'function') {
+            try {
+                this.ytPlayer.playVideo();
+                this.syncYouTubeVolume();
+            } catch (e) {}
+        }
+    }
+
+    syncYouTubeVolume() {
+        if (!this.ytPlayer) return;
+        try {
+            if (this.isMuted) {
+                if (typeof this.ytPlayer.mute === 'function') this.ytPlayer.mute();
+            } else {
+                if (typeof this.ytPlayer.unMute === 'function') this.ytPlayer.unMute();
+                if (typeof this.ytPlayer.setVolume === 'function') {
+                    this.ytPlayer.setVolume(Math.round(this.volume * 100));
+                }
+            }
+        } catch (e) {}
+    }
+
+    /**
+     * Unified custom stream loader (.mp4, .m3u8, or YouTube)
+     */
+    loadCustomStream(url) {
+        if (!url) return;
+        url = url.trim();
+
+        // 1. Check if YouTube link
+        const ytId = this.extractYouTubeVideoId(url);
+        if (ytId) {
+            this.loadYouTube(ytId);
+            return;
+        }
+
+        // 2. Otherwise load as video (.mp4, .m3u8, .webm)
+        if (!this.customVideo) return;
+
+        this.currentMediaMode = 'video';
+        this.pauseYouTube();
+        if (this.youtubeContainer) {
+            this.youtubeContainer.style.display = 'none';
+        }
+
+        this.tvCanvas.style.display = 'none';
+        window.retroAudio.stopStaticNoise();
+
+        // Check if HLS stream (.m3u8)
+        if (url.includes('.m3u8')) {
+            if (window.Hls && Hls.isSupported()) {
+                if (this.hls) {
+                    this.hls.destroy();
+                    this.hls = null;
+                }
+                this.hls = new Hls();
+                this.hls.loadSource(url);
+                this.hls.attachMedia(this.customVideo);
+                this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    this.customVideo.play().catch(() => {});
+                });
+            } else if (this.customVideo.canPlayType('application/vnd.apple.mpegurl')) {
+                this.customVideo.src = url;
+                this.customVideo.play().catch(() => {});
+            } else {
+                this.customVideo.src = url;
+                this.customVideo.play().catch(() => {});
+            }
+        } else {
+            if (this.hls) {
+                this.hls.destroy();
+                this.hls = null;
+            }
+            this.customVideo.src = url;
+            this.customVideo.play().catch(e => {
+                alert('Não foi possível carregar a URL fornecida: ' + e.message);
+            });
+        }
+
+        this.customVideo.style.display = 'block';
+        this.customVideo.volume = this.volume;
+        this.customVideo.muted = this.isMuted;
+
+        // Register Channel 998 for custom stream
+        this.registerOrUpdateChannel({
+            id: "998",
+            number: 998,
+            code: "IPTV-STREAM",
+            name: "Custom Stream",
+            title: "Transmissão Personalizada IPTV",
+            timeSlot: "Live Stream",
+            language: "Digital Audio",
+            rating: "TV-PG",
+            category: "IPTV / Stream",
+            description: "Stream externo carregado via URL direta. Use o controle remoto (OK: Play/Pause, ◀/▶: -/+10s, VOL: Volume, EXIT: Voltar).",
+            type: "custom",
+            streamUrl: url
+        });
+
+        const chIdx = this.channels.findIndex(c => c.id === "998" || c.number === 998);
+        if (chIdx !== -1) {
+            this.currentChannelIndex = chIdx;
+            this.bannerBrowsingIndex = chIdx;
+            this.updateMiniGuideHighlight();
+        }
+
+        this.updateBannerForChannel(this.currentChannelIndex);
+        this.showBanner(5000);
+        this.showMediaOSD('▶', 'STREAM SINTONIZADO');
     }
 
     /**
@@ -1355,6 +1982,14 @@ class RetroTVController {
         });
     }
 }
+
+// Global YouTube IFrame API Ready Callback
+window.onYouTubeIframeAPIReady = function() {
+    window.isYouTubeIframeAPIReady = true;
+    if (window.tvApp && typeof window.tvApp.onYouTubeAPIReady === 'function') {
+        window.tvApp.onYouTubeAPIReady();
+    }
+};
 
 // Instantiate on DOM load
 window.addEventListener('DOMContentLoaded', () => {

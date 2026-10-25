@@ -52,6 +52,11 @@
             <!-- Custom Video Feed Support (for user stream URLs or files) -->
             <video id="custom-video" loop playsinline></video>
 
+            <!-- YouTube IFrame Embed Container -->
+            <div id="youtube-container" class="youtube-player-container">
+                <div id="youtube-player"></div>
+            </div>
+
             <!-- CRT Scanlines & Phosphor Bloom Layer -->
             <div id="crt-layer" class="crt-overlay"></div>
 
@@ -278,6 +283,14 @@
                     <span id="vol-text" class="osd-vol-text">VOL 70%</span>
                 </div>
             </div>
+
+            <!-- ========================================================
+                 OSD MEDIA STATUS POPUP (Play, Pause, Fast-forward, Rewind)
+                 ======================================================== -->
+            <div id="osd-media-badge" class="osd-media-badge hidden">
+                <span id="osd-media-icon" class="osd-media-icon">▶</span>
+                <span id="osd-media-text" class="osd-media-text">REPRODUZINDO</span>
+            </div>
         </div>
     </div>
 
@@ -307,11 +320,11 @@
 
         <!-- Directional D-PAD -->
         <div class="remote-dpad-container">
-            <button class="dpad-btn dpad-up" id="rc-up">▲</button>
-            <button class="dpad-btn dpad-left" id="rc-left">◀</button>
-            <button class="dpad-center-ok" id="rc-ok">OK</button>
-            <button class="dpad-btn dpad-right" id="rc-right">▶</button>
-            <button class="dpad-btn dpad-down" id="rc-down">▼</button>
+            <button class="dpad-btn dpad-up" id="rc-up" title="Volume + / Cima">▲</button>
+            <button class="dpad-btn dpad-left" id="rc-left" title="Retroceder 10s / Canal Anterior">◀</button>
+            <button class="dpad-center-ok" id="rc-ok" title="OK / Play / Pause">OK</button>
+            <button class="dpad-btn dpad-right" id="rc-right" title="Avançar 10s / Próximo Canal">▶</button>
+            <button class="dpad-btn dpad-down" id="rc-down" title="Volume - / Baixo">▼</button>
         </div>
 
         <!-- Volume and Channel Rockers -->
@@ -332,7 +345,7 @@
         <div class="remote-color-row">
             <button class="btn-remote-color btn-color-red" id="rc-red" title="Mutar Efeitos Sonoros (SFX)"></button>
             <button class="btn-remote-color btn-color-green" id="rc-green" title="Alternar Tubo CRT"></button>
-            <button class="btn-remote-color btn-color-yellow" id="rc-yellow" title="Opções de TV"></button>
+            <button class="btn-remote-color btn-color-yellow" id="rc-yellow" title="Sintonizar Vídeo (YouTube, IPTV, MP4)"></button>
             <button class="btn-remote-color btn-color-blue" id="rc-blue" title="Canal Aleatório"></button>
         </div>
 
@@ -358,18 +371,36 @@
         <span><img src="icons/aquanet-nosignal-1.png" alt="Abrir Controle Remoto" class="floating-remote-logo"></span>
     </div>
 
-    <!-- Custom IPTV / Video URL Modal -->
+    <!-- Custom IPTV / Video / YouTube URL Modal -->
     <div id="modal-stream" class="modal-custom-stream">
-        <h3 style="color: #64b5f6; font-size: 20px;">Adicionar Transmissão / URL IPTV</h3>
-        <p style="font-size: 14px; color: #bad7f5;">Insira a URL de um vídeo (.mp4, .webm) ou stream para reproduzir na tela da TV:</p>
-        <input type="text" id="stream-url-input" placeholder="https://exemplo.com/video.mp4">
+        <div class="modal-header">
+            <span class="modal-header-badge">LIVE / VOD</span>
+            <h3 style="color: #64b5f6; font-size: 20px; margin: 0;">Sintonizar Vídeo ou Stream</h3>
+        </div>
+        <p style="font-size: 13.5px; color: #bad7f5; margin: 0; line-height: 1.45;">
+            Insira o link de um vídeo do <strong>YouTube</strong>, stream <strong>IPTV (.m3u8)</strong> ou arquivo de vídeo direto <strong>(.mp4, .webm)</strong>:
+        </p>
+        <div class="modal-input-container">
+            <input type="text" id="stream-url-input" placeholder="Cole o link do YouTube ou URL do vídeo..." autocomplete="off">
+            <button id="btn-clear-stream" class="btn-clear-input" title="Limpar campo">✕</button>
+        </div>
+        <div class="modal-quick-suggestions">
+            <span class="quick-label">Sugestões rápidas:</span>
+            <div class="quick-tags">
+                <button type="button" class="btn-quick-tag" data-url="https://www.youtube.com/watch?v=jfKfPfyJRdk">Lo-Fi Chill (YouTube)</button>
+                <button type="button" class="btn-quick-tag" data-url="https://www.youtube.com/watch?v=5qap5aO4i9A">Lofi Girl Live (YouTube)</button>
+                <button type="button" class="btn-quick-tag" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4">Big Buck Bunny (.mp4)</button>
+            </div>
+        </div>
         <div class="modal-actions">
             <button class="btn-modal btn-modal-cancel" id="btn-cancel-stream">Cancelar</button>
-            <button class="btn-modal btn-modal-load" id="btn-load-stream">Sintonizar Stream</button>
+            <button class="btn-modal btn-modal-load" id="btn-load-stream">Sintonizar na TV</button>
         </div>
     </div>
 
     <!-- Scripts -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <script src="audio.js"></script>
     <script src="channels.js"></script>
     <script src="app.js"></script>

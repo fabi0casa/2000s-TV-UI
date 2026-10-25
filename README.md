@@ -53,8 +53,17 @@ Desenvolvido em **HTML5, CSS3 puro e JavaScript vanilla**, totalmente responsivo
      - Pode ser arrastado pelo cabeçalho no PC ou minimizado para um botão flutuante.
      - No celular (modo retrato), acomoda-se automaticamente logo abaixo da tela da TV.
 
-7. **Suporte a Streams e Vídeos Personalizados**:
-   - Pressione o botão Amarelo (*TV Options*) para abrir o modal e inserir URLs de vídeos (.mp4, .webm) ou transmissões IPTV ao vivo.
+7. **Suporte Completo a Vídeos do YouTube, Streams IPTV e MP4**:
+   - Pressione o **botão Amarelo** (*Opções de TV*) do controle remoto para abrir o modal de inserção de vídeos.
+   - Suporte nativo a links de vídeos do **YouTube** (incluindo `youtube.com/watch?v=...`, `youtu.be/...`, shorts, etc.) via **YouTube IFrame Player Embed**.
+   - Suporte a transmissões ao vivo **IPTV (.m3u8 via HLS.js)** e arquivos de vídeo direto **(.mp4, .webm)**.
+   - **Controle total pelo Controle Remoto**:
+     - **OK / Select**: Pausa ou reproduz o vídeo (*Play / Pause*).
+     - **◀ (Esquerda)**: Retrocede 10 segundos no vídeo com aviso no OSD.
+     - **▶ (Direita)**: Avança 10 segundos no vídeo com aviso no OSD.
+     - **VOL + / VOL - / MUTE**: Ajusta e silencia o volume do vídeo do YouTube / stream com exibição da barra OSD Frutiger Aero.
+     - **POWER**: Desliga a tela da TV e pausa o vídeo; ao religar, retoma a exibição.
+     - **CHAN + / CHAN - / Teclado Numérico**: Alterna para qualquer outro canal de TV clássico (pausando o vídeo do YouTube em segundo plano); ao sintonizar o canal `999` ou clicar nele no Mini Guia / EPG ou no botão FLASH, volta a assistir ao vídeo do YouTube imediatamente!
 
 ---
 
@@ -63,15 +72,18 @@ Desenvolvido em **HTML5, CSS3 puro e JavaScript vanilla**, totalmente responsivo
 | Tecla | Ação |
 | :--- | :--- |
 | **▲ / ▼ (Setas Cima / Baixo)** | Ajustar Volume (ou navegar pelas linhas do Guia e Mini Guia) |
-| **◀ / ▶ (Setas Esquerda / Direita)** | Trocar de canal / Navegar canais na barra Info (ou navegar horários no Guia) |
-| **Enter / OK** | Sintonizar canal pré-visualizado no Banner / Abrir ou fechar Info |
+| **◀ / ▶ (Setas Esquerda / Direita)** | Trocar de canal / Navegar canais no Banner (em modo vídeo: Retroceder / Avançar 10s) |
+| **Enter / OK** | Sintonizar canal / Abrir Info (em modo vídeo: Play / Pause) |
+| **Espaço (Space) / K** | Play / Pause no vídeo do YouTube ou stream |
+| **J / L** | Retroceder (-10s) / Avançar (+10s) no vídeo |
 | **G** | Abrir / Fechar Guia Completo (EPG) |
 | **I** | Exibir / Ocultar Banner de Informações (INFO) |
 | **M** | Abrir / Fechar Mini Guia Lateral |
 | **C** | Ligar / Desligar Efeito de Tubo CRT (Scanlines) |
-| **X** | Alternar instantaneamente para canal de Chiado (Sem Sinal) |
+| **X** | Mutar / Desmutar Efeitos Sonoros (SFX) |
+| **R** | Sintonizar canal aleatório |
 | **0 a 9** | Digitar número do canal diretamente |
-| **Esc** | Fechar guias e menus abertos |
+| **Esc** | Fechar guias, modal de vídeo e menus abertos |
 
 ---
 

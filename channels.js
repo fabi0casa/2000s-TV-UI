@@ -269,6 +269,12 @@ class TVFeedGenerator {
         const ctx = this.ctx;
 
         switch (this.currentType) {
+            case 'youtube':
+                this.renderYouTubePIP(ctx, width, height);
+                break;
+            case 'custom':
+                this.renderCustomPIP(ctx, width, height);
+                break;
             case 'aero_velvet':
                 this.renderAeroVelvet(ctx, width, height);
                 break;
@@ -304,6 +310,79 @@ class TVFeedGenerator {
         }
 
         this.animationFrameId = requestAnimationFrame(() => this.loop());
+    }
+
+    /**
+     * YouTube Live Feed PIP / Preview Screen
+     */
+    renderYouTubePIP(ctx, w, h) {
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, '#091c36');
+        grad.addColorStop(1, '#020914');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+        const cx = w / 2;
+        const cy = h / 2 - 8;
+        const rw = Math.min(w * 0.45, 60);
+        const rh = rw * 0.65;
+
+        // Red badge
+        ctx.fillStyle = '#ff0000';
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(cx - rw / 2, cy - rh / 2, rw, rh, 8);
+        } else {
+            ctx.rect(cx - rw / 2, cy - rh / 2, rw, rh);
+        }
+        ctx.fill();
+
+        // Play triangle
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        const tri = rh * 0.35;
+        ctx.moveTo(cx - tri * 0.5, cy - tri);
+        ctx.lineTo(cx + tri * 0.7, cy);
+        ctx.lineTo(cx - tri * 0.5, cy + tri);
+        ctx.closePath();
+        ctx.fill();
+
+        // Label
+        ctx.fillStyle = '#90caf9';
+        ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('YOUTUBE FEED', cx, cy + rh / 2 + 20);
+    }
+
+    /**
+     * Custom IPTV / Stream Feed PIP / Preview Screen
+     */
+    renderCustomPIP(ctx, w, h) {
+        const grad = ctx.createLinearGradient(0, 0, w, h);
+        grad.addColorStop(0, '#0d2d59');
+        grad.addColorStop(1, '#051428');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, h);
+
+        const cx = w / 2;
+        const cy = h / 2 - 8;
+
+        // Satellite dish icon
+        ctx.strokeStyle = '#64b5f6';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 18, 0.2 * Math.PI, 0.8 * Math.PI, false);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffb74d';
+        ctx.beginPath();
+        ctx.arc(cx, cy - 8, 4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#bad7f5';
+        ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('IPTV STREAM', cx, cy + 28);
     }
 
     /**
