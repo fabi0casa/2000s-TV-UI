@@ -1024,37 +1024,61 @@ html, body {
     top: 36px;
     left: 50%;
     transform: translateX(-50%);
-    background: linear-gradient(180deg, rgba(8, 28, 62, 0.94) 0%, rgba(3, 13, 30, 0.96) 100%);
-    border: 2px solid #5aa5f2;
-    border-radius: 30px;
-    padding: 8px 24px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 0 18px rgba(90, 165, 242, 0.4);
+    background: linear-gradient(180deg, #1b4b9b 0%, #153f86 45%, #0e2f6c 52%, #123c82 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.55);
+    border-radius: 20px;
+    padding: 6px 20px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.75), inset 0 1px 2px rgba(255, 255, 255, 0.8), inset 0 -1px 2px rgba(0, 0, 0, 0.4);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
     z-index: 60;
     pointer-events: none;
+    overflow: hidden;
     transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Frutiger Aero signature gloss highlight arch across the top half */
+.osd-media-badge::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.05) 100%);
+    border-radius: 20px 20px 0 0;
+    pointer-events: none;
 }
 
 .osd-media-badge.hidden {
     opacity: 0;
-    transform: translateX(-50%) translateY(-15px) scale(0.95);
+    transform: translateX(-50%) translateY(-12px) scale(0.96);
     pointer-events: none;
 }
 
 .osd-media-icon {
-    font-size: 20px;
-    color: #64b5f6;
-    text-shadow: 0 0 12px #64b5f6;
+    font-size: 15px;
+    background: linear-gradient(180deg, #dcebfa 0%, #adcdeb 48%, #85b0df 52%, #b5d8f7 100%);
+    color: #071f46;
+    border: 1px solid #14356e;
+    border-radius: 12px;
+    padding: 2px 8px;
+    box-shadow: inset 0 1px 1px #ffffff, 0 1px 3px rgba(0, 0, 0, 0.5);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.85);
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .osd-media-text {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 14.5px;
-    font-weight: 700;
+    font-size: 13.5px;
+    font-weight: 800;
     color: #ffffff;
-    letter-spacing: 1.2px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+    letter-spacing: 0.8px;
 }
 
 /* ===================================================================
@@ -1427,7 +1451,7 @@ html, body {
     transform: scale(1.06);
 }
 
-/* Custom Stream / YouTube URL Modal */
+/* Custom Stream / YouTube URL Modal (Frutiger Aero 2000s Glass Dialog) */
 .modal-custom-stream {
     position: fixed;
     top: 50%;
@@ -1435,15 +1459,29 @@ html, body {
     transform: translate(-50%, -50%);
     width: 92%;
     max-width: 500px;
-    background: linear-gradient(180deg, #112d59 0%, #071733 100%);
-    border: 2px solid #3d80d1;
-    border-radius: 16px;
+    background: linear-gradient(180deg, #184282 0%, #113468 45%, #0a234a 52%, #0e2d5c 100%);
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    border-radius: 18px;
     padding: 24px;
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.95), inset 0 1px 2px rgba(255, 255, 255, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), inset 0 2px 3px rgba(255, 255, 255, 0.75), inset 0 -2px 3px rgba(0, 0, 0, 0.5);
     z-index: 100;
     display: none;
     flex-direction: column;
     gap: 15px;
+    overflow: hidden;
+}
+
+/* Frutiger Aero signature specular gloss arch on modal top */
+.modal-custom-stream::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 45%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.04) 100%);
+    border-radius: 18px 18px 0 0;
+    pointer-events: none;
 }
 
 .modal-custom-stream.active {
@@ -1457,14 +1495,16 @@ html, body {
 }
 
 .modal-header-badge {
-    background: linear-gradient(180deg, #ff4757 0%, #c0392b 100%);
-    color: #ffffff;
-    font-size: 10px;
+    background: linear-gradient(180deg, #dcebfa 0%, #adcdeb 48%, #85b0df 52%, #b5d8f7 100%);
+    color: #071f46;
+    border: 1px solid #14356e;
+    border-radius: 6px;
+    font-size: 10.5px;
     font-weight: 800;
     padding: 3px 8px;
-    border-radius: 4px;
     letter-spacing: 1px;
-    box-shadow: 0 2px 6px rgba(255, 71, 87, 0.5);
+    box-shadow: inset 0 1px 1px #ffffff, 0 2px 4px rgba(0, 0, 0, 0.35);
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .modal-input-container {
@@ -1478,58 +1518,64 @@ html, body {
     width: 100%;
     padding: 12px 38px 12px 14px;
     border-radius: 8px;
-    background: #040c1a;
-    border: 1.5px solid #2d65a8;
+    background: #020a17;
+    border: 1.5px solid #3567a2;
     color: #ffffff;
-    font-size: 14.5px;
+    font-size: 14px;
     outline: none;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.2);
     transition: border-color 0.2s, box-shadow 0.2s;
     box-sizing: border-box;
 }
 
 .modal-input-container input:focus {
-    border-color: #5aa5f2;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 12px rgba(90, 165, 242, 0.45);
+    border-color: #8ec5fc;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 0 1px #8ec5fc, 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 
 .btn-clear-input {
     position: absolute;
     right: 10px;
-    background: transparent;
-    border: none;
-    color: #7faadb;
-    font-size: 14px;
+    background: linear-gradient(180deg, #e3effa 0%, #b3d2f0 100%);
+    border: 1px solid #1f4a82;
+    color: #0b2654;
+    font-size: 12px;
+    font-weight: 800;
     cursor: pointer;
-    padding: 4px 6px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: inset 0 1px 1px #ffffff, 0 1px 3px rgba(0, 0, 0, 0.4);
     transition: all 0.2s;
 }
 
 .btn-clear-input:hover {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.15);
+    background: #ffffff;
+    color: #000000;
+    transform: scale(1.08);
 }
 
 .modal-quick-suggestions {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    background: rgba(5, 17, 39, 0.6);
-    padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid rgba(45, 101, 168, 0.4);
+    background: linear-gradient(180deg, rgba(8, 26, 56, 0.65) 0%, rgba(4, 14, 32, 0.75) 100%);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .quick-label {
     font-size: 11px;
-    color: #8bbceb;
+    color: #b5d8f7;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
+    letter-spacing: 0.8px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
 .quick-tags {
@@ -1539,22 +1585,30 @@ html, body {
 }
 
 .btn-quick-tag {
-    background: rgba(18, 48, 88, 0.7);
-    border: 1px solid #2d65a8;
+    background: linear-gradient(180deg, #2b619e 0%, #1c4b82 48%, #133968 52%, #1b4b82 100%);
+    border: 1px solid rgba(255, 255, 255, 0.35);
     border-radius: 6px;
-    color: #c9e2fa;
+    color: #ffffff;
     font-size: 11.5px;
-    padding: 5px 9px;
+    font-weight: 600;
+    padding: 5px 10px;
     cursor: pointer;
-    transition: all 0.2s;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7), inset 0 -1px 2px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.35);
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
+    transition: all 0.2s ease;
     text-align: left;
 }
 
 .btn-quick-tag:hover {
-    background: #255a9c;
-    border-color: #64b5f6;
-    color: #ffffff;
+    background: linear-gradient(180deg, #3d7cc4 0%, #2965a8 48%, #1c4b82 52%, #265f9e 100%);
+    border-color: rgba(255, 255, 255, 0.65);
     transform: translateY(-1px);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+.btn-quick-tag:active {
+    transform: translateY(1px);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .modal-actions {
@@ -1564,21 +1618,44 @@ html, body {
 }
 
 .btn-modal {
-    padding: 10px 18px;
+    padding: 9px 20px;
     border-radius: 8px;
-    font-weight: 700;
+    font-size: 13.5px;
+    font-weight: 800;
     cursor: pointer;
-    border: none;
+    transition: all 0.2s ease;
 }
 
 .btn-modal-cancel {
-    background: #20334d;
-    color: #cfdfee;
+    background: linear-gradient(180deg, #3b5577 0%, #253952 48%, #1a2839 52%, #233750 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    color: #e2edfa;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), inset 0 -1px 2px rgba(0, 0, 0, 0.4), 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+.btn-modal-cancel:hover {
+    background: linear-gradient(180deg, #4c6c96 0%, #314a6b 48%, #20334a 52%, #2f4766 100%);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 .btn-modal-load {
-    background: linear-gradient(180deg, #ffc83b 0%, #f39200 100%);
-    color: #1a0800;
+    background: linear-gradient(180deg, #ffd752 0%, #f5a623 48%, #d97706 52%, #f5a623 100%);
+    border: 1.5px solid #78350f;
+    color: #2b1100;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.95), inset 0 -1px 2px rgba(0, 0, 0, 0.35), 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+.btn-modal-load:hover {
+    background: linear-gradient(180deg, #ffe37d 0%, #fbbe47 48%, #ea8c16 52%, #fbbe47 100%);
+    transform: translateY(-1px);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 1), 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.btn-modal-load:active {
+    transform: translateY(1px);
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 /* ===================================================================

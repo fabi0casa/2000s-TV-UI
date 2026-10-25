@@ -33,6 +33,11 @@ Desenvolvido em **HTML5, CSS3 puro e JavaScript vanilla**, totalmente responsivo
      - Caixa de sinopse detalhada do programa ou aviso de sinal da antena.
      - Grade de horários com cursor de seleção dourado/âmbar em alto relevo com brilho.
      - Navegação completa por canais e horários.
+     - **Botões Coloridos no Guia (Comportamento Exclusivo do EPG)**:
+       - **🔴 Vermelho**: **Pág ▲ (-4)** - Pula rapidamente 4 canais para cima na lista (Page Up).
+       - **🟢 Verde**: **Pág ▼ (+4)** - Pula rapidamente 4 canais para baixo na lista (Page Down).
+       - **🟡 Amarelo**: **Guide Options** - Abre o modal para sintonizar URLs, YouTube ou IPTV.
+       - **🔵 Azul**: **Fechar (Exit)** - Fecha o Guia e retorna instantaneamente à transmissão da TV.
 
 4. **Mini Guia Lateral (Mini Guide)**:
    - Acessível pelo botão azul do controle ou tecla `M`, permitindo navegar e sintonizar outros canais sem interromper a transmissão.

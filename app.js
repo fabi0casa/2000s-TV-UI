@@ -696,9 +696,26 @@ class RetroTVController {
 
     guideMoveVertical(delta) {
         window.retroAudio.playBeep('nav');
-        this.guideSelectedChannelIndex += delta;
-        if (this.guideSelectedChannelIndex < 0) this.guideSelectedChannelIndex = this.channels.length - 1;
-        if (this.guideSelectedChannelIndex >= this.channels.length) this.guideSelectedChannelIndex = 0;
+        if (delta < -1) {
+            // Page up (e.g. -4 channels)
+            if (this.guideSelectedChannelIndex === 0) {
+                this.guideSelectedChannelIndex = this.channels.length - 1;
+            } else {
+                this.guideSelectedChannelIndex = Math.max(0, this.guideSelectedChannelIndex + delta);
+            }
+        } else if (delta > 1) {
+            // Page down (e.g. +4 channels)
+            if (this.guideSelectedChannelIndex >= this.channels.length - 1) {
+                this.guideSelectedChannelIndex = 0;
+            } else {
+                this.guideSelectedChannelIndex = Math.min(this.channels.length - 1, this.guideSelectedChannelIndex + delta);
+            }
+        } else {
+            // Single step up / down
+            this.guideSelectedChannelIndex += delta;
+            if (this.guideSelectedChannelIndex < 0) this.guideSelectedChannelIndex = this.channels.length - 1;
+            if (this.guideSelectedChannelIndex >= this.channels.length) this.guideSelectedChannelIndex = 0;
+        }
         this.updateEPGSelection();
     }
 
@@ -1164,15 +1181,35 @@ class RetroTVController {
                     break;
                 case 'c':
                 case 'C':
-                    this.toggleCRT();
+                    if (this.isGuideOpen) {
+                        this.guideMoveVertical(4);
+                    } else {
+                        this.toggleCRT();
+                    }
                     break;
                 case 'x':
                 case 'X':
-                    this.toggleSFXMute();
+                    if (this.isGuideOpen) {
+                        this.guideMoveVertical(-4);
+                    } else {
+                        this.toggleSFXMute();
+                    }
                     break;
                 case 'r':
                 case 'R':
-                    this.tuneRandomChannel();
+                    if (this.isGuideOpen) {
+                        this.closeGuide();
+                    } else {
+                        this.tuneRandomChannel();
+                    }
+                    break;
+                case 'PageUp':
+                    e.preventDefault();
+                    if (this.isGuideOpen) this.guideMoveVertical(-4);
+                    break;
+                case 'PageDown':
+                    e.preventDefault();
+                    if (this.isGuideOpen) this.guideMoveVertical(4);
                     break;
             }
         });
@@ -1264,10 +1301,30 @@ class RetroTVController {
         document.getElementById('rc-ch-down').addEventListener('click', () => this.channelDown());
 
         // 4 Color Buttons
-        document.getElementById('rc-red').addEventListener('click', () => this.toggleSFXMute());
-        document.getElementById('rc-green').addEventListener('click', () => this.toggleCRT());
-        document.getElementById('rc-yellow').addEventListener('click', () => this.openCustomStreamModal());
-        document.getElementById('rc-blue').addEventListener('click', () => this.tuneRandomChannel());
+        document.getElementById('rc-red').addEventListener('click', () => {
+            if (this.isGuideOpen) {
+                this.guideMoveVertical(-4);
+            } else {
+                this.toggleSFXMute();
+            }
+        });
+        document.getElementById('rc-green').addEventListener('click', () => {
+            if (this.isGuideOpen) {
+                this.guideMoveVertical(4);
+            } else {
+                this.toggleCRT();
+            }
+        });
+        document.getElementById('rc-yellow').addEventListener('click', () => {
+            this.openCustomStreamModal();
+        });
+        document.getElementById('rc-blue').addEventListener('click', () => {
+            if (this.isGuideOpen) {
+                this.closeGuide();
+            } else {
+                this.tuneRandomChannel();
+            }
+        });
 
         // Numeric Keypad
         document.querySelectorAll('.btn-num[data-num]').forEach(btn => {
@@ -1437,14 +1494,12 @@ class RetroTVController {
             });
         }
 
-        // EPG Guide Hints
+        // EPG Guide Hints (Page Up, Page Down, Options, Exit)
         document.getElementById('epg-hint-red').addEventListener('click', () => {
-            window.retroAudio.playBeep('nav');
-            this.guideMoveHorizontal(-1);
+            this.guideMoveVertical(-4);
         });
         document.getElementById('epg-hint-green').addEventListener('click', () => {
-            window.retroAudio.playBeep('nav');
-            this.guideMoveHorizontal(1);
+            this.guideMoveVertical(4);
         });
         document.getElementById('epg-hint-yellow').addEventListener('click', () => this.openCustomStreamModal());
         document.getElementById('epg-hint-blue').addEventListener('click', () => this.closeGuide());
