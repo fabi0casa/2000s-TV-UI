@@ -53,6 +53,11 @@ class RetroTVController {
         this.floatingRemoteBtn = document.getElementById('floating-remote-btn');
         this.modalStream = document.getElementById('modal-stream');
 
+        // Floating Remote Launcher State
+        this.isRemoteMinimized = false;
+        this.floatingBtnTimeout = null;
+        this.isMouseOverFloatingBtn = false;
+
         // Feed Generators
         this.tvFeed = new window.TVFeedGenerator(this.tvCanvas);
         this.pipFeed = new window.TVFeedGenerator(this.pipCanvas);
@@ -71,6 +76,7 @@ class RetroTVController {
         // Bind Events
         this.bindKeyboard();
         this.bindRemote();
+        this.bindFloatingRemoteLauncher();
         this.bindOSDInteractions();
         this.bindTouchControls();
         this.makeRemoteDraggable();
@@ -887,16 +893,131 @@ class RetroTVController {
         });
 
         // Minimize / Close Remote Button
-        document.getElementById('btn-minimize-remote').addEventListener('click', () => {
-            this.remoteControl.style.display = 'none';
-            this.floatingRemoteBtn.style.display = 'flex';
+        const btnMinimize = document.getElementById('btn-minimize-remote');
+        if (btnMinimize) {
+            btnMinimize.addEventListener('click', () => {
+                this.minimizeRemote();
+            });
+        }
+    }
+
+    /**
+     * Floating Remote Launcher interactions (auto-hide when idle or mouse leaves screen)
+     */
+    bindFloatingRemoteLauncher() {
+        if (!this.floatingRemoteBtn) return;
+
+        // Hover events: keep launcher visible while hovered
+        this.floatingRemoteBtn.addEventListener('mouseenter', () => {
+            this.isMouseOverFloatingBtn = true;
+            if (this.floatingBtnTimeout) {
+                clearTimeout(this.floatingBtnTimeout);
+                this.floatingBtnTimeout = null;
+            }
+            this.showFloatingButton();
         });
 
-        // Floating button to reopen remote
-        this.floatingRemoteBtn.addEventListener('click', () => {
-            this.remoteControl.style.display = 'flex';
-            this.floatingRemoteBtn.style.display = 'none';
+        this.floatingRemoteBtn.addEventListener('mouseleave', () => {
+            this.isMouseOverFloatingBtn = false;
+            this.resetFloatingButtonTimeout();
         });
+
+        // Click launcher button to restore remote
+        this.floatingRemoteBtn.addEventListener('click', () => {
+            this.restoreRemote();
+        });
+
+        // Global activity triggers: mouse movement, pointer move, keydown, touch
+        const onUserActivity = () => {
+            if (!this.isRemoteMinimized) return;
+            this.showFloatingButton();
+            this.resetFloatingButtonTimeout();
+        };
+
+        window.addEventListener('mousemove', onUserActivity, { passive: true });
+        window.addEventListener('pointermove', onUserActivity, { passive: true });
+        window.addEventListener('keydown', onUserActivity, { passive: true });
+        window.addEventListener('touchstart', onUserActivity, { passive: true });
+
+        // When mouse re-enters the window
+        document.addEventListener('mouseenter', () => {
+            if (!this.isRemoteMinimized) return;
+            this.showFloatingButton();
+            this.resetFloatingButtonTimeout();
+        });
+
+        // When mouse leaves the window or viewport -> hide immediately unless hovering the button
+        document.addEventListener('mouseleave', () => {
+            if (!this.isRemoteMinimized || this.isMouseOverFloatingBtn) return;
+            if (this.floatingBtnTimeout) {
+                clearTimeout(this.floatingBtnTimeout);
+                this.floatingBtnTimeout = null;
+            }
+            this.hideFloatingButton();
+        });
+
+        window.addEventListener('mouseout', (e) => {
+            if (!this.isRemoteMinimized || this.isMouseOverFloatingBtn) return;
+            if (!e.relatedTarget && !e.toElement) {
+                if (this.floatingBtnTimeout) {
+                    clearTimeout(this.floatingBtnTimeout);
+                    this.floatingBtnTimeout = null;
+                }
+                this.hideFloatingButton();
+            }
+        });
+    }
+
+    minimizeRemote() {
+        this.isRemoteMinimized = true;
+        this.remoteControl.style.display = 'none';
+        this.floatingRemoteBtn.style.display = 'flex';
+        requestAnimationFrame(() => {
+            this.showFloatingButton();
+            this.resetFloatingButtonTimeout();
+        });
+        if (window.retroAudio) {
+            window.retroAudio.playBeep('nav');
+        }
+    }
+
+    restoreRemote() {
+        this.isRemoteMinimized = false;
+        if (this.floatingBtnTimeout) {
+            clearTimeout(this.floatingBtnTimeout);
+            this.floatingBtnTimeout = null;
+        }
+        this.hideFloatingButton();
+        this.floatingRemoteBtn.style.display = 'none';
+        this.remoteControl.style.display = 'flex';
+        if (window.retroAudio) {
+            window.retroAudio.playBeep('select');
+        }
+    }
+
+    showFloatingButton() {
+        if (!this.floatingRemoteBtn) return;
+        this.floatingRemoteBtn.classList.remove('hidden');
+    }
+
+    hideFloatingButton() {
+        if (!this.floatingRemoteBtn) return;
+        this.floatingRemoteBtn.classList.add('hidden');
+    }
+
+    resetFloatingButtonTimeout() {
+        if (this.floatingBtnTimeout) {
+            clearTimeout(this.floatingBtnTimeout);
+            this.floatingBtnTimeout = null;
+        }
+        if (!this.isRemoteMinimized || this.isMouseOverFloatingBtn) return;
+
+        // Auto-hide after 3 seconds of inactivity
+        this.floatingBtnTimeout = setTimeout(() => {
+            if (this.isRemoteMinimized && !this.isMouseOverFloatingBtn) {
+                this.hideFloatingButton();
+            }
+        }, 3000);
     }
 
     /**
