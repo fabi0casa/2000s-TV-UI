@@ -409,7 +409,7 @@ class RetroTVController {
         if (this.isGuideOpen) {
             this.guideMoveVertical(-1);
         } else if (this.isMiniGuideOpen) {
-            this.channelUp();
+            this.channelDown(); // Visualmente sobe na lista do Mini Guide (índice anterior)
         } else {
             this.adjustVolume(0.05);
         }
@@ -422,7 +422,7 @@ class RetroTVController {
         if (this.isGuideOpen) {
             this.guideMoveVertical(1);
         } else if (this.isMiniGuideOpen) {
-            this.channelDown();
+            this.channelUp(); // Visualmente desce na lista do Mini Guide (próximo índice)
         } else {
             this.adjustVolume(-0.05);
         }
