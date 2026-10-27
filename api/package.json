@@ -1,0 +1,22 @@
+{
+  "name": "iptv-epg-api",
+  "version": "1.0.0",
+  "description": "API Node.js para validação de streams IPTV (Brasil e EUA), associação inteligente de EPG e desduplicação com atualização automática a cada 72h.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "sync": "node server.js --sync-now",
+    "test": "node -e \"console.log('API OK')\""
+  },
+  "keywords": [
+    "iptv",
+    "epg",
+    "streams",
+    "brasil",
+    "usa",
+    "m3u8",
+    "xmltv"
+  ],
+  "author": "",
+  "license": "MIT"
+}
