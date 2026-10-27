@@ -1,0 +1,6 @@
+# Dados gerados dinamicamente e cache local
+api/data/*
+!api/data/.gitkeep
+
+# Dependências
+node_modules/
