@@ -1,7 +1,0 @@
-IPTV:
-https://github.com/iptv-org/iptv
-https://github.com/Ramys/Iptv-Brasil-2026
-
-EPG:
-https://github.com/iptv-org/epg
-https://github.com/limaalef/BrazilTVEPG

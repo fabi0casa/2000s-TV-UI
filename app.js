@@ -67,6 +67,8 @@ class RetroTVController {
         this.pendingYouTubeId = null;
         this.mediaOSDTimeout = null;
         this.hls = null;
+        this.apiBaseUrl = 'http://localhost:1414';
+        this.epgProgramsCache = new Map();
 
         // Remote LED Blinking State
         this.isLedBlinking = false;
@@ -89,9 +91,14 @@ class RetroTVController {
         this.buildEPGGrid();
         this.buildMiniGuide();
 
-        // Tune to first channel (001 ARP-TV)
-        this.tuneChannelByIndex(0, false);
+        // Tune to initial channel (001 if available, otherwise 000 Sem Sinal)
+        const initialChannelIdx = this.channels.length > 1 ? 1 : 0;
+        this.tuneChannelByIndex(initialChannelIdx, false);
         this.updateLedState();
+
+        // Connect to API to fetch dynamic real-time channels and EPG
+        this.syncWithApi();
+        setInterval(() => this.refreshEPG(), 60000);
 
         // Bind Events
         this.bindKeyboard();
@@ -245,26 +252,64 @@ class RetroTVController {
         this.currentChannelIndex = index;
         this.bannerBrowsingIndex = index;
         const ch = this.channels[this.currentChannelIndex];
+        if (!ch) return;
 
         // Sound effect
-        if (playAudio) {
+        if (playAudio && window.retroAudio) {
             window.retroAudio.playChannelSwitch();
         }
 
-        // Check if youtube, custom video, or procedural canvas feed
-        if (ch.type === 'youtube') {
-            this.currentMediaMode = 'youtube';
+        // Check if Canal 000 (Sem Sinal), IPTV stream, YouTube, or Custom video
+        if (ch.type === 'static' || ch.number === 0 || ch.number === 404) {
+            this.currentMediaMode = 'canvas';
+            this.pauseYouTube();
+            if (this.youtubeContainer) this.youtubeContainer.style.display = 'none';
+            if (this.hls) {
+                this.hls.destroy();
+                this.hls = null;
+            }
+            if (this.customVideo) {
+                this.customVideo.pause();
+                this.customVideo.removeAttribute('src');
+                this.customVideo.load();
+                this.customVideo.style.display = 'none';
+            }
+            this.tvCanvas.style.display = 'block';
+            this.tvFeed.setChannelType('static');
+            this.pipFeed.setChannelType('static');
+            this.pipFeed.setVideoSource(null);
+            if (window.retroAudio) window.retroAudio.startStaticNoise();
+        } else if (ch.type === 'iptv' || ch.liveUrl || ch.streamUrl) {
+            this.currentMediaMode = 'tv';
+            if (window.retroAudio) window.retroAudio.stopStaticNoise();
+            this.pauseYouTube();
+            if (this.youtubeContainer) this.youtubeContainer.style.display = 'none';
             this.tvCanvas.style.display = 'none';
+            this.customVideo.style.display = 'block';
+            this.playIPTVChannel(ch);
+            this.pipFeed.setChannelType('iptv');
+            this.pipFeed.setVideoSource(this.customVideo);
+        } else if (ch.type === 'youtube') {
+            this.currentMediaMode = 'youtube';
+            if (window.retroAudio) window.retroAudio.stopStaticNoise();
+            if (this.hls) {
+                this.hls.destroy();
+                this.hls = null;
+            }
             if (this.customVideo) {
                 this.customVideo.pause();
                 this.customVideo.style.display = 'none';
             }
+            this.tvCanvas.style.display = 'none';
             if (this.youtubeContainer) {
                 this.youtubeContainer.style.display = 'block';
             }
             this.playYouTube();
+            this.pipFeed.setChannelType('youtube');
+            this.pipFeed.setVideoSource(null);
         } else if (ch.type === 'custom' && this.customVideo && this.customVideo.src) {
-            this.currentMediaMode = 'video';
+            this.currentMediaMode = 'tv';
+            if (window.retroAudio) window.retroAudio.stopStaticNoise();
             this.pauseYouTube();
             if (this.youtubeContainer) {
                 this.youtubeContainer.style.display = 'none';
@@ -272,8 +317,11 @@ class RetroTVController {
             this.tvCanvas.style.display = 'none';
             this.customVideo.style.display = 'block';
             this.customVideo.play().catch(() => {});
+            this.pipFeed.setChannelType('custom');
+            this.pipFeed.setVideoSource(this.customVideo);
         } else {
             this.currentMediaMode = 'canvas';
+            if (window.retroAudio) window.retroAudio.stopStaticNoise();
             this.pauseYouTube();
             if (this.youtubeContainer) {
                 this.youtubeContainer.style.display = 'none';
@@ -285,13 +333,7 @@ class RetroTVController {
             this.tvCanvas.style.display = 'block';
             this.tvFeed.setChannelType(ch.type);
             this.pipFeed.setChannelType(ch.type);
-        }
-
-        // Handle "Sem Sinal" (Static) Audio
-        if (ch.type === 'static' || ch.number === 404) {
-            window.retroAudio.startStaticNoise();
-        } else {
-            window.retroAudio.stopStaticNoise();
+            this.pipFeed.setVideoSource(null);
         }
 
         // Update Top Banner Elements
@@ -302,23 +344,100 @@ class RetroTVController {
 
         // Update active class in Mini Guide
         this.updateMiniGuideHighlight();
-
-        // Update EPG PIP feed
-        this.pipFeed.setChannelType(ch.type);
     }
 
     /**
-     * Tune directly by channel numeric code (e.g. 294)
+     * Play live IPTV HLS stream (.m3u8) using local proxy or direct stream
+     */
+    playIPTVChannel(ch) {
+        if (!this.customVideo) return;
+
+        const streamUrl = ch.liveUrl || ch.streamUrl;
+        if (!streamUrl) {
+            console.warn('[IPTV] Canal sem URL:', ch);
+            return;
+        }
+
+        this.customVideo.volume = this.volume;
+        this.customVideo.muted = this.isMuted;
+
+        if (this.hls) {
+            this.hls.destroy();
+            this.hls = null;
+        }
+
+        if (window.Hls && Hls.isSupported()) {
+            this.hls = new Hls({
+                enableWorker: true,
+                lowLatencyMode: true,
+                backBufferLength: 60
+            });
+
+            this.hls.loadSource(streamUrl);
+            this.hls.attachMedia(this.customVideo);
+
+            this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                this.customVideo.play().catch(e => {
+                    console.warn('[IPTV] Autoplay blocked or delayed:', e);
+                });
+            });
+
+            this.hls.on(Hls.Events.ERROR, (event, data) => {
+                if (data.fatal) {
+                    console.warn('[HLS Fatal Error]', data.type, data.details);
+                    switch (data.type) {
+                        case Hls.ErrorTypes.NETWORK_ERROR:
+                            if (ch.streamUrl && streamUrl !== ch.streamUrl) {
+                                console.log('[IPTV] Fallback para stream original:', ch.streamUrl);
+                                this.hls.loadSource(ch.streamUrl);
+                                this.hls.startLoad();
+                            } else {
+                                this.hls.startLoad();
+                            }
+                            break;
+                        case Hls.ErrorTypes.MEDIA_ERROR:
+                            this.hls.recoverMediaError();
+                            break;
+                        default:
+                            this.hls.destroy();
+                            this.hls = null;
+                            break;
+                    }
+                }
+            });
+        } else if (this.customVideo.canPlayType('application/vnd.apple.mpegurl')) {
+            this.customVideo.src = streamUrl;
+            this.customVideo.play().catch(() => {});
+        } else {
+            this.customVideo.src = streamUrl;
+            this.customVideo.play().catch(() => {});
+        }
+
+        this.showMediaOSD('▶', `${ch.id} ${ch.name || ch.code}`);
+    }
+
+    /**
+     * Tune directly by channel numeric code (e.g. 1, 294, 0, etc.)
+     * Mandar para 000 caso não exista.
      */
     tuneByNumber(num) {
+        if (num === 0 || num === 404) {
+            const staticIdx = this.channels.findIndex(c => c.type === 'static' || c.number === 0 || c.id === "000");
+            if (staticIdx !== -1) {
+                this.tuneChannelByIndex(staticIdx, true);
+                return;
+            }
+        }
+
         const targetIndex = this.channels.findIndex(c => c.number === num || parseInt(c.id, 10) === num);
         if (targetIndex !== -1) {
             this.tuneChannelByIndex(targetIndex, true);
         } else {
-            // Channel not found -> Tune to Static / Sem Sinal
-            const staticIdx = this.channels.findIndex(c => c.type === 'static');
+            // Canal inexistente -> mandar para 000
+            const staticIdx = this.channels.findIndex(c => c.type === 'static' || c.number === 0 || c.id === "000");
             if (staticIdx !== -1) {
                 this.tuneChannelByIndex(staticIdx, true);
+                this.showMediaOSD('⚠', 'CANAL NÃO ENCONTRADO - 000');
             }
         }
     }
@@ -408,9 +527,18 @@ class RetroTVController {
         if (elNum) elNum.innerText = ch.id;
         if (elCode) elCode.innerText = ch.code;
         if (elTitle) elTitle.innerText = ch.title;
-        if (elLang) elLang.innerText = ch.language || 'English';
+        if (elLang) elLang.innerText = ch.language || 'Português';
         if (elTimeslot) elTimeslot.innerText = ch.timeSlot || '';
-        if (elRating) elRating.innerText = ch.rating || 'NONE';
+        if (elRating) elRating.innerText = ch.rating || 'LIVRE';
+
+        const logoOrb = document.querySelector('.banner-channel-badge .logo-orb');
+        if (logoOrb) {
+            if (ch.logo) {
+                logoOrb.innerHTML = `<img src="${ch.logo}" alt="${ch.name}" onerror="this.outerHTML='<svg viewBox=\\'0 0 100 100\\'><circle cx=\\'50\\' cy=\\'50\\' r=\\'48\\' fill=\\'#111827\\'/><path d=\\'M 50 2 A 48 48 0 0 1 50 98 A 24 24 0 0 1 50 50 A 24 24 0 0 0 50 2\\' fill=\\'#ffffff\\'/><circle cx=\\'50\\' cy=\\'26\\' r=\\'6\\' fill=\\'#111827\\'/><circle cx=\\'50\\' cy=\\'74\\' r=\\'6\\' fill=\\'#ffffff\\'/></svg>'">`;
+            } else {
+                logoOrb.innerHTML = `<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="48" fill="#111827"/><path d="M 50 2 A 48 48 0 0 1 50 98 A 24 24 0 0 1 50 50 A 24 24 0 0 0 50 2" fill="#ffffff"/><circle cx="50" cy="26" r="6" fill="#111827"/><circle cx="50" cy="74" r="6" fill="#ffffff"/></svg>`;
+            }
+        }
 
         if (elFavTag) {
             if (index !== this.currentChannelIndex) {
@@ -480,8 +608,6 @@ class RetroTVController {
             this.bannerBrowse(-1);
         } else if (this.currentMediaMode === 'youtube') {
             this.seekYouTube(-10);
-        } else if (this.currentMediaMode === 'video') {
-            this.seekCustomVideo(-10);
         } else if (this.isBannerVisible) {
             this.bannerBrowse(-1);
         } else {
@@ -498,8 +624,6 @@ class RetroTVController {
             this.bannerBrowse(1);
         } else if (this.currentMediaMode === 'youtube') {
             this.seekYouTube(10);
-        } else if (this.currentMediaMode === 'video') {
-            this.seekCustomVideo(10);
         } else if (this.isBannerVisible) {
             this.bannerBrowse(1);
         } else {
@@ -513,7 +637,7 @@ class RetroTVController {
     handleOkPress() {
         if (!this.isPowerOn) return;
 
-        // In media mode (YouTube or Custom Video), OK toggles Play / Pause unless user is actively browsing another channel in the banner
+        // Apenas na implementação do YouTube, o OK pausa/reproduz
         if (this.currentMediaMode === 'youtube') {
             if (this.isBannerVisible && this.bannerBrowsingIndex !== this.currentChannelIndex) {
                 this.tuneChannelByIndex(this.bannerBrowsingIndex, true);
@@ -523,16 +647,7 @@ class RetroTVController {
             return;
         }
 
-        if (this.currentMediaMode === 'video') {
-            if (this.isBannerVisible && this.bannerBrowsingIndex !== this.currentChannelIndex) {
-                this.tuneChannelByIndex(this.bannerBrowsingIndex, true);
-                return;
-            }
-            this.toggleCustomVideoPlayPause();
-            return;
-        }
-
-        // Standard TV channel behavior
+        // Comportamento normal da TV (Canal 000 e todos os canais reais de transmissão):
         if (!this.isBannerVisible) {
             this.bannerBrowsingIndex = this.currentChannelIndex;
             this.updateBannerForChannel(this.bannerBrowsingIndex);
@@ -596,7 +711,22 @@ class RetroTVController {
      */
     buildEPGGrid() {
         const rowsContainer = document.getElementById('epg-rows-list');
+        if (!rowsContainer) return;
         rowsContainer.innerHTML = '';
+
+        // Calculate dynamic time headers for the 3 slots based on current half-hour
+        const now = new Date();
+        const baseMin = now.getMinutes() < 30 ? 0 : 30;
+        const slot0Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), baseMin);
+        const slot1Date = new Date(slot0Date.getTime() + 30 * 60000);
+        const slot2Date = new Date(slot0Date.getTime() + 60 * 60000);
+
+        const elSlot0 = document.getElementById('epg-time-slot-0');
+        const elSlot1 = document.getElementById('epg-time-slot-1');
+        const elSlot2 = document.getElementById('epg-time-slot-2');
+        if (elSlot0) elSlot0.innerText = window.formatTime12 ? window.formatTime12(slot0Date) : '--:--';
+        if (elSlot1) elSlot1.innerText = window.formatTime12 ? window.formatTime12(slot1Date) : '--:--';
+        if (elSlot2) elSlot2.innerText = window.formatTime12 ? window.formatTime12(slot2Date) : '--:--';
 
         this.channels.forEach((ch, chIdx) => {
             const row = document.createElement('div');
@@ -606,9 +736,11 @@ class RetroTVController {
             // Channel Label Cell (left)
             const chCell = document.createElement('div');
             chCell.className = 'epg-channel-cell';
+            const logoHtml = ch.logo ? `<img src="${ch.logo}" alt="" class="epg-cell-logo" onerror="this.style.display='none'">` : '';
             chCell.innerHTML = `
                 <span class="cell-ch-num">${ch.id}</span>
-                <span>${ch.code}</span>
+                ${logoHtml}
+                <span class="cell-ch-name">${ch.code || ch.name}</span>
             `;
             chCell.addEventListener('click', () => {
                 this.guideSelectedChannelIndex = chIdx;
@@ -623,9 +755,9 @@ class RetroTVController {
 
             // Generate 3 schedule program slots for timeline
             const schedule = ch.schedule || [
-                { title: ch.title, time: "5:00a" },
-                { title: ch.title, time: "5:30a" },
-                { title: ch.title, time: "6:00a" }
+                { title: ch.title, time: "--:--" },
+                { title: ch.title, time: "--:--" },
+                { title: ch.title, time: "--:--" }
             ];
 
             schedule.slice(0, 3).forEach((item, slotIdx) => {
@@ -684,13 +816,80 @@ class RetroTVController {
             const timeslotEl = document.getElementById('epg-timeslot');
             const ratingEl = document.getElementById('epg-rating');
 
-            if (headlineEl) headlineEl.innerText = ch.name ? `${ch.name.toUpperCase()} (2009)` : ch.title;
-            if (synopsisEl) synopsisEl.innerText = ch.description;
-            if (timeslotEl) timeslotEl.innerText = ch.timeSlot;
-            if (ratingEl) ratingEl.innerText = ch.rating;
+            const currentSlot = (ch.schedule && ch.schedule[this.guideSelectedSlotIndex]) ? ch.schedule[this.guideSelectedSlotIndex] : null;
+
+            if (headlineEl) headlineEl.innerText = ch.name ? `${ch.name.toUpperCase()} (2009)` : (ch.title || 'AQUANET TV');
+            if (synopsisEl) synopsisEl.innerText = (currentSlot && currentSlot.description) || ch.description || 'Programação normal de transmissão.';
+            if (timeslotEl) timeslotEl.innerText = (currentSlot && currentSlot.timeSlot) || ch.timeSlot || '--:-- - --:--';
+            if (ratingEl) ratingEl.innerText = (currentSlot && currentSlot.rating) || ch.rating || 'LIVRE';
 
             // Live preview in PIP box
             this.pipFeed.setChannelType(ch.type);
+            if (ch.type === 'iptv' && this.customVideo && this.currentChannelIndex === this.guideSelectedChannelIndex) {
+                this.pipFeed.setVideoSource(this.customVideo);
+            } else {
+                this.pipFeed.setVideoSource(null);
+            }
+
+            // Lazy fetch full daily schedule if channel has EPG
+            if (ch.slug && ch.epg && ch.epg.hasEpg && !this.epgProgramsCache.has(ch.slug)) {
+                this.fetchFullChannelGuide(ch);
+            }
+        }
+    }
+
+    /**
+     * Lazy fetch daily schedule for detailed EPG synopsis
+     */
+    async fetchFullChannelGuide(ch) {
+        try {
+            const res = await fetch(`${this.apiBaseUrl}/api/epg/${ch.slug}`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && Array.isArray(data.programs) && data.programs.length > 0) {
+                this.epgProgramsCache.set(ch.slug, data.programs);
+                const liveProg = data.programs.find(p => p.isLive) || data.programs[0];
+                const liveIdx = data.programs.indexOf(liveProg);
+                const next1 = data.programs[liveIdx + 1];
+                const next2 = data.programs[liveIdx + 2];
+
+                ch.schedule = [
+                    {
+                        time: window.formatTime12 ? window.formatTime12(liveProg.start) : '--:--',
+                        timeSlot: window.formatTimeSlot ? window.formatTimeSlot(liveProg.start, liveProg.stop) : '--:--',
+                        title: liveProg.title,
+                        description: liveProg.description || ch.description,
+                        rating: "LIVRE",
+                        current: true
+                    },
+                    next1 ? {
+                        time: window.formatTime12 ? window.formatTime12(next1.start) : '--:--',
+                        timeSlot: window.formatTimeSlot ? window.formatTimeSlot(next1.start, next1.stop) : '--:--',
+                        title: next1.title,
+                        description: next1.description || '',
+                        rating: "LIVRE",
+                        current: false
+                    } : ch.schedule[1],
+                    next2 ? {
+                        time: window.formatTime12 ? window.formatTime12(next2.start) : '--:--',
+                        timeSlot: window.formatTimeSlot ? window.formatTimeSlot(next2.start, next2.stop) : '--:--',
+                        title: next2.title,
+                        description: next2.description || '',
+                        rating: "LIVRE",
+                        current: false
+                    } : ch.schedule[2]
+                ];
+
+                if (this.isGuideOpen && this.guideSelectedChannelIndex === this.channels.indexOf(ch)) {
+                    const synopsisEl = document.getElementById('epg-synopsis-text');
+                    const currentSlot = ch.schedule[this.guideSelectedSlotIndex];
+                    if (synopsisEl && currentSlot) {
+                        synopsisEl.innerText = currentSlot.description || ch.description;
+                    }
+                }
+            }
+        } catch (e) {
+            // Ignore if offline
         }
     }
 
@@ -738,6 +937,7 @@ class RetroTVController {
      */
     buildMiniGuide() {
         const list = document.getElementById('mini-guide-items');
+        if (!list) return;
         list.innerHTML = '';
 
         this.channels.forEach((ch, idx) => {
@@ -745,10 +945,13 @@ class RetroTVController {
             item.className = 'mini-guide-item';
             item.id = `mini-guide-item-${idx}`;
 
+            const logoHtml = ch.logo ? `<img src="${ch.logo}" alt="" class="mini-guide-logo" onerror="this.style.display='none'">` : '';
+
             item.innerHTML = `
                 <div class="mini-guide-ch-left">
                     <span class="mini-guide-num">${ch.id}</span>
-                    <span class="mini-guide-title">${ch.code}</span>
+                    ${logoHtml}
+                    <span class="mini-guide-title">${ch.code || ch.name}</span>
                 </div>
                 <div class="mini-guide-prog">${ch.title}</div>
             `;
@@ -938,7 +1141,7 @@ class RetroTVController {
      */
     triggerSemSinal() {
         window.retroAudio.playBeep('select');
-        const staticIdx = this.channels.findIndex(c => c.type === 'static' || c.number === 404);
+        const staticIdx = this.channels.findIndex(c => c.type === 'static' || c.number === 0 || c.id === '000' || c.number === 404);
         if (staticIdx !== -1) {
             this.tuneChannelByIndex(staticIdx, true);
         }
@@ -1148,21 +1351,21 @@ class RetroTVController {
                     break;
                 case 'k':
                 case 'K':
-                    if (this.currentMediaMode === 'youtube' || this.currentMediaMode === 'video') {
+                    if (this.currentMediaMode === 'youtube') {
                         e.preventDefault();
                         this.handleOkPress();
                     }
                     break;
                 case 'j':
                 case 'J':
-                    if (this.currentMediaMode === 'youtube' || this.currentMediaMode === 'video') {
+                    if (this.currentMediaMode === 'youtube') {
                         e.preventDefault();
                         this.handleLeftPress();
                     }
                     break;
                 case 'l':
                 case 'L':
-                    if (this.currentMediaMode === 'youtube' || this.currentMediaMode === 'video') {
+                    if (this.currentMediaMode === 'youtube') {
                         e.preventDefault();
                         this.handleRightPress();
                     }
@@ -1936,7 +2139,7 @@ class RetroTVController {
         // 2. Otherwise load as video (.mp4, .m3u8, .webm)
         if (!this.customVideo) return;
 
-        this.currentMediaMode = 'video';
+        this.currentMediaMode = 'tv';
         this.pauseYouTube();
         if (this.youtubeContainer) {
             this.youtubeContainer.style.display = 'none';
@@ -2035,6 +2238,82 @@ class RetroTVController {
                 this.handleOkPress();
             }
         });
+    }
+
+    /**
+     * Sincronização em tempo real com a API de IPTV na porta 1414
+     */
+    async syncWithApi() {
+        try {
+            const res = await fetch(`${this.apiBaseUrl}/api/channels/br`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && Array.isArray(data.channels) && data.channels.length > 0) {
+                console.log(`[API] ${data.channels.length} canais brasileiros carregados com sucesso da API!`);
+                const staticCh = window.CHANNEL_000_STATIC || this.channels[0];
+                const transformed = data.channels.map((ch, idx) => {
+                    return window.transformApiChannel ? window.transformApiChannel(ch, idx + 1) : ch;
+                });
+
+                this.channels = [staticCh, ...transformed];
+                window.CHANNELS_DATA = this.channels;
+
+                // Reconstroi o Guia EPG e o Mini Guia com os canais e EPG em tempo real
+                this.buildEPGGrid();
+                this.buildMiniGuide();
+                this.updateBannerForChannel(this.currentChannelIndex);
+                if (this.isGuideOpen) {
+                    this.updateEPGSelection();
+                }
+            }
+        } catch (err) {
+            console.log('[API] Conexão com a API na porta 1414 pendente ou offline. Usando canais locais:', err.message);
+        }
+    }
+
+    /**
+     * Atualização periódica da grade EPG em tempo real
+     */
+    async refreshEPG() {
+        try {
+            const res = await fetch(`${this.apiBaseUrl}/api/epg/live`);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (data && Array.isArray(data.live)) {
+                let changed = false;
+                data.live.forEach(liveItem => {
+                    const ch = this.channels.find(c => c.slug === liveItem.channelId);
+                    if (ch && liveItem.now) {
+                        ch.title = liveItem.now.title || ch.title;
+                        ch.description = liveItem.now.description || ch.description;
+                        if (liveItem.now.start && liveItem.now.stop && window.formatTimeSlot) {
+                            ch.timeSlot = window.formatTimeSlot(liveItem.now.start, liveItem.now.stop);
+                        }
+                        if (ch.schedule && ch.schedule[0]) {
+                            ch.schedule[0].title = liveItem.now.title;
+                            ch.schedule[0].description = liveItem.now.description || ch.description;
+                            if (liveItem.now.start && window.formatTime12) {
+                                ch.schedule[0].time = window.formatTime12(liveItem.now.start);
+                            }
+                        }
+                        if (liveItem.next && ch.schedule && ch.schedule[1]) {
+                            ch.schedule[1].title = liveItem.next.title;
+                            ch.schedule[1].description = liveItem.next.description || '';
+                        }
+                        changed = true;
+                    }
+                });
+
+                if (changed) {
+                    this.updateBannerForChannel(this.currentChannelIndex);
+                    if (this.isGuideOpen) {
+                        this.updateEPGSelection();
+                    }
+                }
+            }
+        } catch (e) {
+            // Silencioso se API offline ou ocupada
+        }
     }
 }
 
