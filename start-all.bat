@@ -13,7 +13,7 @@ echo 2. Aguardando 3 segundos...
 timeout /t 3 /nobreak >nul
 
 echo 3. Abrindo Frontend na porta 8080...
-start "Aquanet TV Frontend (Porta 8080)" cmd /c "start-frontend.bat"
+start "Aquanet TV Frontend (Porta 8080)" cmd /c "cd web && start-frontend.bat"
 
 echo.
 echo Servicos iniciados em janelas separadas!
