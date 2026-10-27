@@ -1,26 +1,24 @@
-# 📺 IPTV & EPG Curated API
+# 📺 IPTV & EPG Curated API (com EPG Dinâmico e Stream Proxy)
 
-API Node.js de alta performance desenvolvida para validar links de transmissão IPTV (Brasil e Estados Unidos), desduplicar canais, associar metadados e guias de programação (EPG) e fornecer um JSON limpo e atualizado através da **porta 1414** com re-verificação automática a cada **72 horas**.
+API Node.js de alta performance desenvolvida para validar links de transmissão IPTV (Brasil e Estados Unidos), desduplicar canais, associar guias de programação (EPG) dinâmicos em tempo real, **contornar bloqueios de CORS no navegador via Stream Proxy** e eliminar streams geo-bloqueados ou inativos.
+
+A API fornece seus dados através da **porta 1414** com re-verificação automática a cada **72 horas**.
 
 ---
 
 ## 🚀 Como Executar
 
-### 1. Pré-requisitos
-- **Node.js** v18+ (testado e otimizado no Node.js v24).
-- Não requer instalação de pacotes externos (`node_modules`) — usa recursos nativos modernos de rede e streaming do Node.js.
-
-### 2. Iniciar o Servidor
+### 1. Iniciar o Servidor
 No terminal, dentro da pasta `api`:
 ```bash
 npm start
 ```
-ou diretamente:
-```bash
-node server.js
+ou no Windows, basta dar dois cliques no arquivo:
+```
+start.bat
 ```
 
-O servidor iniciará imediatamente em **`http://localhost:1414`**.
+O servidor iniciará em **`http://localhost:1414`**.
 
 ---
 
@@ -28,119 +26,82 @@ O servidor iniciará imediatamente em **`http://localhost:1414`**.
 
 | Método | Endpoint | Descrição |
 |---|---|---|
-| `GET` | `/` | Painel informativo de boas-vindas com status do servidor e links rápidos |
-| `GET` | `/channels.json` | **Arquivo JSON principal** contendo todos os canais ativos, tratados e com EPG |
-| `GET` | `/api/channels` | Alias para `/channels.json`, com suporte a filtros via query string |
-| `GET` | `/api/channels/br` | Retorna somente os canais ativos do **Brasil** |
-| `GET` | `/api/channels/us` | Retorna somente os canais ativos dos **Estados Unidos** |
-| `GET` | `/api/status` | Retorna o status em tempo real da validação, progresso e próximo agendamento |
-| `GET` | `/api/epg` | Lista as fontes de dados EPG utilizadas e estatísticas |
-| `POST` / `GET` | `/api/refresh` | Força um ciclo imediato de validação e re-verificação das fontes |
-
-### Exemplos de Filtros em `/api/channels`
-- Filtrar por país: `http://localhost:1414/api/channels?country=BR`
-- Filtrar por categoria: `http://localhost:1414/api/channels?category=Notícias`
-- Buscar por nome: `http://localhost:1414/api/channels?search=globo`
-- Somente canais com grade EPG: `http://localhost:1414/api/channels?hasEpg=true`
+| `GET` | `/` | Painel informativo de boas-vindas com status do servidor e documentação |
+| `GET` | `/channels.json` | **Arquivo JSON dinâmico** com canais 100% funcionais e programação atual (`now` e `next`) calculada no exato instante da requisição |
+| `GET` | `/api/channels` | Mesmo que `/channels.json`, com filtros (`?country=BR`, `?category=Esportes`, `?search=band`) |
+| `GET` | `/api/channels/br` | Retorna somente os canais do **Brasil** |
+| `GET` | `/api/channels/us` | Retorna somente os canais dos **Estados Unidos** |
+| `GET` | `/api/epg/:channelId` | **Grade diária completa em tempo real** do canal solicitado (timeline de programas do dia) |
+| `GET` | `/api/epg/live` | Retorna os programas que estão no ar agora em todos os canais simultaneamente |
+| `GET` | `/live/:channelId.m3u8` | **Endpoint de stream direto e sem CORS** pronto para qualquer player web (`hls.js`, `video.js`) |
+| `GET` | `/proxy?url=...` | Proxy universal reescritor de HLS/TS que injeta cabeçalhos e libera CORS |
+| `GET` | `/api/status` | Status do ciclo de vida, progresso de validação e agendador |
+| `POST` / `GET` | `/api/refresh` | Força uma re-verificação manual imediata das fontes |
 
 ---
 
-## ⚙️ Arquitetura e Funcionalidades
+## 🌐 Como Funciona o EPG Dinâmico em Tempo Real?
 
-### 1. Fontes de Canais IPTV Integradas
-- **IPTV-Org**:
-  - `https://iptv-org.github.io/iptv/countries/br.m3u` (Brasil)
-  - `https://iptv-org.github.io/iptv/countries/us.m3u` (EUA)
-  - `https://iptv-org.github.io/api/channels.json` (Metadados oficiais)
-- **IPTV Brasil 2026 (Ramys)**:
-  - `Canais.m3u8` (Canais de transmissão abertos e fechados)
-  - `CanaisBR03.m3u8` (Transmissões diretas HD)
-
-### 2. Validação Ativa de Streams (`streamTester.js`)
-- Executa testes HTTP controlados por um pool concorrente (25 conexões simultâneas).
-- Timeout de 3.5 segundos por conexão para evitar bloqueios.
-- Tenta requisição `HEAD` primeiro; caso o servidor restrinja, realiza requisição `GET` com Range parcial (`bytes=0-1024`) e encerra o leitor do stream imediatamente.
-- Filtra streams inativos e registra a latência real de resposta em milissegundos.
-
-### 3. Associação Inteligente com EPG (`epgParser.js`)
-Consolida em tempo real guias de programação dos dois repositórios solicitados:
-- **BrazilTVEPG (`limaalef/BrazilTVEPG`)**:
-  - `epg.xml`, `claro.xml`, `globo.xml`, `vivoplay.xml`, `maissbt.xml`, `xsports.xml`.
-- **IPTV-Org EPG (`iptv-org/epg` / `iptv-epg.org`)**:
-  - `epg-br.xml` (Brasil) e `epg-us.xml` (Estados Unidos).
-- Associa o canal por `tvg-id`, nome canônico normalizado ou busca fonética aproximada.
-- Detecta o programa que está passando **agora** (`now`) e o próximo (`next`).
-
-### 4. Tratamento e Desduplicação (`matcher.js`)
-- Remove termos redundantes de resolução/codecs do título (`FHD`, `HD`, `SD`, `4K`, `H.265`, `720p`, etc.).
-- Agrupa transmissões do mesmo canal em um único objeto canônico.
-- O stream com menor latência é definido como primário (`streamUrl`), e os demais streams ativos são preservados no array `backupStreams` para redundância.
-
-### 5. Ciclo de Atualização a cada 72 Horas
-- O arquivo `data/channels.json` é gerado e mantido no disco.
-- Ao iniciar, se o cache tiver menos de 72 horas, o servidor atende instantaneamente.
-- O timer interno reexecuta a verificação completa a cada 72 horas em segundo plano sem indisponibilidade de serviço.
+Anteriormente, o arquivo continha apenas um snapshot estático dos programas no momento da geração do JSON. Agora:
+1. **Banco em Memória:** A API mantém toda a base de programação das fontes (*BrazilTVEPG* e *IPTV-Org EPG*) em memória.
+2. **Cálculo no Momento da Requisição:** Ao chamar `GET /channels.json` ou `GET /api/channels`, a API compara o horário atual do servidor (`new Date()`) com o início e término dos programas, preenchendo os campos `now` (programa no ar agora com porcentagem de progresso) e `next` (próximo programa) em tempo real.
+3. **Consulta de Grade Específica:** Ao clicar em um canal no player, o frontend pode chamar `GET /api/epg/br-band` para receber a lista cronológica de todos os programas do dia com sinopse, horários de início e fim.
 
 ---
 
-## 📋 Estrutura do Arquivo `channels.json` Gerado
+## 🛡️ Solução para CORS e Bloqueios no Navegador
+
+### Por que o navegador bloqueia IPTV direto?
+- **CORS:** A maioria das transmissões de TV ao vivo e serviços FAST (como Pluto TV) envia cabeçalhos como `Access-Control-Allow-Origin: http://pluto.tv` ou nenhum cabeçalho CORS. O navegador bloqueia a requisição de qualquer player rodando em outro domínio ou `localhost`.
+- **Formato MPEG-TS:** Vários canais transmitem em formato `.ts` contínuo, que faz com que players baseados em `hls.js` falhem por esperar um manifesto `.m3u8`.
+
+### Como a API resolve isso?
+1. **Stream Proxy Integrado (`/live/:channelId.m3u8` e `/proxy?url=...`):**
+   - O player do seu site requisita o canal para a sua própria API (`http://localhost:1414/live/br-band.m3u8`).
+   - A API Node.js (que **não** sofre restrições de CORS do navegador) busca os dados no servidor de transmissão original, simula cabeçalhos de navegadores e players legítimos e devolve o vídeo com `Access-Control-Allow-Origin: *`.
+   - Manifestos HLS têm suas URLs de fragmentos (`.ts`) reescritas para também passarem pelo proxy, garantindo que o vídeo toque sem nenhuma falha.
+2. **Filtragem Estrita de Streams Incompatíveis / Geo-Bloqueados:**
+   - Durante a verificação, a API não apenas checa se a URL responde 200: **ela baixa o manifesto HLS e testa o download do primeiro fragmento de vídeo real**.
+   - Streams com bloqueio geográfico real (que rejeitam conexões brasileiras) ou que retornam erros 403, 414 ou 502 são **automaticamente descartados e eliminados da lista**.
+
+---
+
+## 📋 Exemplo de Objeto de Canal no JSON
 
 ```json
 {
-  "meta": {
-    "title": "IPTV & EPG Curated API",
-    "version": "1.0.0",
-    "generatedAt": "2026-10-27T03:00:00.000Z",
-    "nextUpdateAt": "2026-10-30T03:00:00.000Z",
-    "updateIntervalHours": 72,
-    "totalChannels": 420,
-    "channelsByCountry": {
-      "BR": 175,
-      "US": 245
+  "id": "br-band",
+  "name": "Band",
+  "country": "BR",
+  "countryName": "Brasil",
+  "category": "Geral / Notícias",
+  "logo": "https://i.imgur.com/1r5T6Pw.png",
+  "streamUrl": "http://170.84.165.204/BAND_HD/index.m3u8",
+  "liveUrl": "http://localhost:1414/live/br-band.m3u8",
+  "proxyUrl": "http://localhost:1414/proxy?url=http%3A%2F%2F170.84.165.204%2FBAND_HD%2Findex.m3u8",
+  "corsNative": true,
+  "isHls": true,
+  "latencyMs": 142,
+  "epg": {
+    "hasEpg": true,
+    "channelId": "BAND HD",
+    "channelName": "BAND HD",
+    "source": "BrazilTVEPG - Principal",
+    "epgEndpoint": "/api/epg/br-band",
+    "now": {
+      "title": "Jornal da Band",
+      "description": "As principais notícias do Brasil e do mundo.",
+      "start": "2026-10-27T22:30:00.000Z",
+      "stop": "2026-10-27T23:30:00.000Z",
+      "progressPercent": 42
     },
-    "totalActiveStreams": 580,
-    "epgMatchedChannels": 385,
-    "epgMatchRate": "92%",
-    "syncDurationSeconds": 145
-  },
-  "channels": [
-    {
-      "id": "br-band",
-      "name": "Band",
-      "country": "BR",
-      "countryName": "Brasil",
-      "category": "Geral / Notícias",
-      "logo": "https://i.imgur.com/1r5T6Pw.png",
-      "streamUrl": "http://170.84.165.204/BAND_HD/index.m3u8",
-      "backupStreams": [
-        "http://45.185.11.126:8000/play/a076/index.m3u8"
-      ],
-      "totalStreamsAvailable": 2,
-      "latencyMs": 142,
-      "statusCode": 200,
-      "verifiedAt": "2026-10-27T03:02:15.120Z",
-      "epg": {
-        "hasEpg": true,
-        "channelId": "BAND HD",
-        "channelName": "BAND HD",
-        "source": "BrazilTVEPG - Principal",
-        "xmltvUrl": "https://raw.githubusercontent.com/limaalef/BrazilTVEPG/main/epg.xml",
-        "now": {
-          "title": "Jornal da Band",
-          "description": "As principais notícias do Brasil e do mundo com análise detalhada.",
-          "category": "Jornalismo",
-          "start": "2026-10-27T22:30:00.000Z",
-          "stop": "2026-10-27T23:30:00.000Z"
-        },
-        "next": {
-          "title": "Melhor da Noite",
-          "description": "Programa de variedades e entretenimento ao vivo.",
-          "category": "Entretenimento",
-          "start": "2026-10-27T23:30:00.000Z",
-          "stop": "2026-10-28T00:45:00.000Z"
-        }
-      }
+    "next": {
+      "title": "Melhor da Noite",
+      "description": "Programa de atualidades e variedades.",
+      "start": "2026-10-27T23:30:00.000Z",
+      "stop": "2026-10-28T00:45:00.000Z"
     }
-  ]
+  }
 }
 ```
+No seu player web, basta utilizar `channel.liveUrl` (ou `channel.streamUrl` se `channel.corsNative` for `true`).

@@ -1,13 +1,13 @@
 /**
- * Parser e Indexador de EPG (XMLTV)
- * Baixa e analisa guias de programação dos repositórios especificados (BrazilTVEPG e IPTV-Org EPG)
- * e indexa as grades para associação instantânea com os canais.
+ * Parser e Indexador Dinâmico de EPG (XMLTV)
+ * Baixa e analisa guias de programação dos repositórios (BrazilTVEPG e IPTV-Org EPG)
+ * e mantém a grade completa em memória para consultas em tempo real com cálculo dinâmico do que está no ar.
  */
 
 const zlib = require('zlib');
 
 /**
- * Converte data XMLTV (ex: "20261026213000 -0300" ou "20261026213000 +0000") para objeto Date
+ * Converte data XMLTV (ex: "20261026213000 -0300") para objeto Date
  */
 function parseXMLTVDate(str) {
   if (!str) return null;
@@ -25,7 +25,7 @@ function parseXMLTVDate(str) {
 }
 
 /**
- * Normaliza strings de texto para chaves de busca fonética e textual
+ * Normaliza strings para chaves de busca fonética e textual
  */
 function normalizeEpgKey(val) {
   if (!val) return '';
@@ -39,9 +39,9 @@ function normalizeEpgKey(val) {
 }
 
 /**
- * Analisa conteúdo XMLTV bruto
+ * Analisa conteúdo XMLTV bruto preservando a grade completa
  */
-function parseXMLTV(xmlString, sourceInfo, now = new Date()) {
+function parseXMLTV(xmlString, sourceInfo) {
   const channelIndex = new Map();
   const searchMap = new Map();
 
@@ -65,8 +65,6 @@ function parseXMLTV(xmlString, sourceInfo, now = new Date()) {
       icon: icon,
       source: sourceInfo.name,
       xmltvUrl: sourceInfo.url,
-      currentProgram: null,
-      nextProgram: null,
       programs: []
     };
 
@@ -82,7 +80,6 @@ function parseXMLTV(xmlString, sourceInfo, now = new Date()) {
   // 2. Extração de programas: <programme start="..." stop="..." channel="...">
   const progRegex = /<programme\s+start="([^"]+)"\s+stop="([^"]+)"\s+channel="([^"]+)">([\s\S]*?)<\/programme>/gi;
   let pMatch;
-  const nowMs = now.getTime();
 
   while ((pMatch = progRegex.exec(xmlString)) !== null) {
     const rawStart = pMatch[1];
@@ -101,7 +98,7 @@ function parseXMLTV(xmlString, sourceInfo, now = new Date()) {
     const descMatch = progBlock.match(/<desc[^>]*>([^<]+)<\/desc>/i);
     const categoryMatch = progBlock.match(/<category[^>]*>([^<]+)<\/category>/i);
 
-    const prog = {
+    channelObj.programs.push({
       title: titleMatch ? titleMatch[1].trim() : 'Sem título',
       description: descMatch ? descMatch[1].trim() : '',
       category: categoryMatch ? categoryMatch[1].trim() : '',
@@ -109,44 +106,19 @@ function parseXMLTV(xmlString, sourceInfo, now = new Date()) {
       stop: stopDate.toISOString(),
       startMs: startDate.getTime(),
       stopMs: stopDate.getTime()
-    };
-
-    // Identifica programa atual e próximo
-    if (prog.startMs <= nowMs && prog.stopMs >= nowMs) {
-      channelObj.currentProgram = {
-        title: prog.title,
-        description: prog.description,
-        category: prog.category,
-        start: prog.start,
-        stop: prog.stop
-      };
-    } else if (prog.startMs > nowMs) {
-      if (!channelObj.nextProgram || prog.startMs < channelObj.nextProgram.startMs) {
-        channelObj.nextProgram = {
-          title: prog.title,
-          description: prog.description,
-          category: prog.category,
-          start: prog.start,
-          stop: prog.stop,
-          startMs: prog.startMs
-        };
-      }
-    }
+    });
   }
 
-  // Limpa campos auxiliares
+  // Ordena os programas por data de início
   for (const ch of channelIndex.values()) {
-    if (ch.nextProgram && ch.nextProgram.startMs) {
-      delete ch.nextProgram.startMs;
-    }
-    delete ch.programs;
+    ch.programs.sort((a, b) => a.startMs - b.startMs);
   }
 
   return { channelIndex, searchMap };
 }
 
 /**
- * Baixa e carrega uma fonte EPG (trata tanto XML quanto XML comprimido em GZIP)
+ * Baixa e carrega uma fonte EPG (trata XML puro e GZIP)
  */
 async function loadEpgSource(source) {
   try {
@@ -180,7 +152,7 @@ async function loadEpgSource(source) {
 }
 
 /**
- * Carrega todas as fontes EPG configuradas e consolida em um único catálogo
+ * Carrega todas as fontes EPG e constrói o banco de dados dinâmico
  */
 async function loadAllEpgSources(sources) {
   console.log(`[EPG] Carregando ${sources.length} fontes de grade de programação...`);
@@ -194,23 +166,17 @@ async function loadAllEpgSources(sources) {
       const parsed = await loadEpgSource(src);
       if (!parsed) continue;
 
-      // Mescla canais
       for (const [id, chData] of parsed.channelIndex.entries()) {
         if (!masterChannels.has(id)) {
           masterChannels.set(id, chData);
         } else {
-          // Atualiza programas atuais se a fonte tiver dados mais recentes
+          // Concatena programas se vier de mais de uma fonte
           const existing = masterChannels.get(id);
-          if (!existing.currentProgram && chData.currentProgram) {
-            existing.currentProgram = chData.currentProgram;
-          }
-          if (!existing.nextProgram && chData.nextProgram) {
-            existing.nextProgram = chData.nextProgram;
-          }
+          existing.programs.push(...chData.programs);
+          existing.programs.sort((a, b) => a.startMs - b.startMs);
         }
       }
 
-      // Mescla busca normalizada
       for (const [key, chId] of parsed.searchMap.entries()) {
         if (!masterSearchMap.has(key)) {
           masterSearchMap.set(key, chId);
@@ -229,13 +195,11 @@ async function loadAllEpgSources(sources) {
     searchMap: masterSearchMap,
 
     /**
-     * Busca um canal no EPG por tvgId, nome exibido ou termo aproximado
+     * Busca canal no catálogo EPG por tvgId ou nome
      */
     findEpg(tvgId, title, country = 'BR') {
-      // 1. Busca exata por tvgId
       if (tvgId) {
         if (masterChannels.has(tvgId)) return masterChannels.get(tvgId);
-        // Tenta tvgId sem sufixo @SD, @HD
         const cleanTvgId = tvgId.split('@')[0];
         if (masterChannels.has(cleanTvgId)) return masterChannels.get(cleanTvgId);
 
@@ -245,14 +209,12 @@ async function loadAllEpgSources(sources) {
         }
       }
 
-      // 2. Busca por nome normalizado
       if (title) {
         const normTitle = normalizeEpgKey(title);
         if (masterSearchMap.has(normTitle)) {
           return masterChannels.get(masterSearchMap.get(normTitle));
         }
 
-        // Tenta com sufixo do país se não tiver
         const withCountry = normalizeEpgKey(`${title} ${country}`);
         if (masterSearchMap.has(withCountry)) {
           return masterChannels.get(masterSearchMap.get(withCountry));
@@ -260,6 +222,97 @@ async function loadAllEpgSources(sources) {
       }
 
       return null;
+    },
+
+    /**
+     * Calcula dinamicamente o programa atual e próximo no momento exato da consulta
+     */
+    getLiveProgram(channelId, atDate = new Date()) {
+      const channel = masterChannels.get(channelId);
+      if (!channel || !channel.programs || channel.programs.length === 0) {
+        return { now: null, next: null };
+      }
+
+      const nowMs = atDate.getTime();
+      let current = null;
+      let next = null;
+
+      for (let i = 0; i < channel.programs.length; i++) {
+        const p = channel.programs[i];
+        if (p.startMs <= nowMs && p.stopMs >= nowMs) {
+          const durationMs = p.stopMs - p.startMs;
+          const elapsedMs = nowMs - p.startMs;
+          const progressPercent = durationMs > 0 ? Math.min(100, Math.max(0, Math.round((elapsedMs / durationMs) * 100))) : 0;
+
+          current = {
+            title: p.title,
+            description: p.description,
+            category: p.category,
+            start: p.start,
+            stop: p.stop,
+            progressPercent
+          };
+
+          // O próximo é o programa seguinte da lista
+          if (i + 1 < channel.programs.length) {
+            const nextP = channel.programs[i + 1];
+            next = {
+              title: nextP.title,
+              description: nextP.description,
+              category: nextP.category,
+              start: nextP.start,
+              stop: nextP.stop
+            };
+          }
+          break;
+        } else if (p.startMs > nowMs && !current) {
+          // Se não há programa atual cobrindo o instante, o próximo é o primeiro que começa depois de agora
+          next = {
+            title: p.title,
+            description: p.description,
+            category: p.category,
+            start: p.start,
+            stop: p.stop
+          };
+          break;
+        }
+      }
+
+      return { now: current, next };
+    },
+
+    /**
+     * Retorna a grade completa de um canal filtrada para as próximas 24 horas
+     */
+    getChannelSchedule(channelId, atDate = new Date(), hoursAhead = 24) {
+      const channel = masterChannels.get(channelId);
+      if (!channel) return null;
+
+      const fromMs = atDate.getTime() - (2 * 60 * 60 * 1000); // inclui últimas 2 horas
+      const toMs = atDate.getTime() + (hoursAhead * 60 * 60 * 1000);
+
+      const relevantPrograms = channel.programs
+        .filter(p => p.stopMs >= fromMs && p.startMs <= toMs)
+        .map(p => {
+          const isLive = p.startMs <= atDate.getTime() && p.stopMs >= atDate.getTime();
+          return {
+            title: p.title,
+            description: p.description,
+            category: p.category,
+            start: p.start,
+            stop: p.stop,
+            isLive
+          };
+        });
+
+      return {
+        channelId: channel.id,
+        channelName: channel.name,
+        source: channel.source,
+        xmltvUrl: channel.xmltvUrl,
+        programsCount: relevantPrograms.length,
+        programs: relevantPrograms
+      };
     }
   };
 }

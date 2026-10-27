@@ -2,10 +2,10 @@
  * Gerenciador de Sincronização e Ciclo de Vida da API
  * Orquestra o ciclo completo:
  *  1. Coleta de listas M3U/M3U8 (iptv-org e Ramys/Iptv-Brasil-2026)
- *  2. Validação concorrente dos links de transmissão
+ *  2. Validação concorrente estrita dos links de transmissão (HLS e primeiro chunk de vídeo)
  *  3. Coleta e consolidação de fontes EPG (BrazilTVEPG e IPTV-Org EPG)
- *  4. Tratamento, desduplicação e associação canal <-> EPG
- *  5. Geração e persistência do arquivo channels.json
+ *  4. Tratamento, desduplicação e associação canal <-> EPG dinâmico
+ *  5. Geração e persistência do arquivo channels.json e banco EPG
  *  6. Agendamento de re-verificação a cada 72 horas
  */
 
@@ -21,7 +21,7 @@ class SyncManager {
   constructor() {
     this.isSyncing = false;
     this.status = {
-      state: 'idle', // 'idle' | 'fetching_sources' | 'testing_streams' | 'fetching_epg' | 'processing' | 'done' | 'error'
+      state: 'idle',
       message: 'Pronto',
       progress: {
         tested: 0,
@@ -34,6 +34,7 @@ class SyncManager {
     };
 
     this.cachedData = null;
+    this.epgDatabase = null;
     this.schedulerTimer = null;
 
     this.ensureDirectories();
@@ -50,19 +51,17 @@ class SyncManager {
       ...this.status,
       isSyncing: this.isSyncing,
       cachedChannelsCount: this.cachedData ? this.cachedData.channels.length : 0,
+      hasEpgDatabase: this.epgDatabase !== null,
       uptimeSeconds: Math.round(process.uptime())
     };
   }
 
-  /**
-   * Carrega os dados persistidos no disco na inicialização do servidor
-   */
   loadCachedData() {
     try {
       if (fs.existsSync(config.CHANNELS_FILE)) {
         const raw = fs.readFileSync(config.CHANNELS_FILE, 'utf-8');
         this.cachedData = JSON.parse(raw);
-        console.log(`[Cache] Carregados ${this.cachedData.channels.length} canais do arquivo channels.json existente.`);
+        console.log(`[Cache] Carregados ${this.cachedData.channels.length} canais do channels.json.`);
       }
 
       if (fs.existsSync(config.LAST_SYNC_FILE)) {
@@ -74,14 +73,106 @@ class SyncManager {
           this.status.nextSync = new Date(lastTime + config.SYNC_INTERVAL_MS).toISOString();
         }
       }
+
+      // Tenta carregar banco EPG prévio
+      const epgDbPath = path.join(config.DATA_DIR, 'epg_database.json');
+      if (fs.existsSync(epgDbPath)) {
+        const rawEpg = fs.readFileSync(epgDbPath, 'utf-8');
+        const parsedEpg = JSON.parse(rawEpg);
+        const masterChannels = new Map(Object.entries(parsedEpg.channels));
+        const masterSearchMap = new Map(Object.entries(parsedEpg.searchMap));
+        
+        // Reconstrói métodos de consulta
+        this.epgDatabase = {
+          channels: masterChannels,
+          searchMap: masterSearchMap,
+          findEpg(tvgId, title, country = 'BR') {
+            if (tvgId) {
+              if (masterChannels.has(tvgId)) return masterChannels.get(tvgId);
+              const cleanTvgId = tvgId.split('@')[0];
+              if (masterChannels.has(cleanTvgId)) return masterChannels.get(cleanTvgId);
+            }
+            return null;
+          },
+          getLiveProgram(channelId, atDate = new Date()) {
+            const channel = masterChannels.get(channelId);
+            if (!channel || !channel.programs || channel.programs.length === 0) {
+              return { now: null, next: null };
+            }
+            const nowMs = atDate.getTime();
+            let current = null;
+            let next = null;
+
+            for (let i = 0; i < channel.programs.length; i++) {
+              const p = channel.programs[i];
+              if (p.startMs <= nowMs && p.stopMs >= nowMs) {
+                const durationMs = p.stopMs - p.startMs;
+                const elapsedMs = nowMs - p.startMs;
+                const progressPercent = durationMs > 0 ? Math.min(100, Math.max(0, Math.round((elapsedMs / durationMs) * 100))) : 0;
+                current = {
+                  title: p.title,
+                  description: p.description,
+                  category: p.category,
+                  start: p.start,
+                  stop: p.stop,
+                  progressPercent
+                };
+                if (i + 1 < channel.programs.length) {
+                  const nextP = channel.programs[i + 1];
+                  next = {
+                    title: nextP.title,
+                    description: nextP.description,
+                    category: nextP.category,
+                    start: nextP.start,
+                    stop: nextP.stop
+                  };
+                }
+                break;
+              } else if (p.startMs > nowMs && !current) {
+                next = {
+                  title: p.title,
+                  description: p.description,
+                  category: p.category,
+                  start: p.start,
+                  stop: p.stop
+                };
+                break;
+              }
+            }
+            return { now: current, next };
+          },
+          getChannelSchedule(channelId, atDate = new Date(), hoursAhead = 24) {
+            const channel = masterChannels.get(channelId);
+            if (!channel) return null;
+            const fromMs = atDate.getTime() - (2 * 60 * 60 * 1000);
+            const toMs = atDate.getTime() + (hoursAhead * 60 * 60 * 1000);
+            const relevant = (channel.programs || [])
+              .filter(p => p.stopMs >= fromMs && p.startMs <= toMs)
+              .map(p => ({
+                title: p.title,
+                description: p.description,
+                category: p.category,
+                start: p.start,
+                stop: p.stop,
+                isLive: p.startMs <= atDate.getTime() && p.stopMs >= atDate.getTime()
+              }));
+
+            return {
+              channelId: channel.id,
+              channelName: channel.name,
+              source: channel.source,
+              programsCount: relevant.length,
+              programs: relevant
+            };
+          }
+        };
+        console.log(`[Cache] Banco de dados EPG carregado em memória (${masterChannels.size} canais com grade).`);
+      }
     } catch (err) {
-      console.warn('[Cache] Erro ao carregar cache pré-existente:', err.message);
+      console.warn('[Cache] Erro ao carregar cache prévio:', err.message);
     }
   }
 
-  /**
-   * Salva os dados gerados de forma atômica no arquivo channels.json
-   */
   saveChannelsJson(payload) {
     this.ensureDirectories();
     const tempFile = `${config.CHANNELS_FILE}.tmp`;
@@ -90,18 +181,30 @@ class SyncManager {
     this.cachedData = payload;
   }
 
-  /**
-   * Salva metadados do último ciclo de sincronização
-   */
+  saveEpgDatabase(epgDb) {
+    this.ensureDirectories();
+    const epgDbPath = path.join(config.DATA_DIR, 'epg_database.json');
+    const channelsObj = {};
+    for (const [id, data] of epgDb.channels.entries()) {
+      channelsObj[id] = {
+        id: data.id,
+        name: data.name,
+        source: data.source,
+        xmltvUrl: data.xmltvUrl,
+        programs: data.programs || []
+      };
+    }
+    const searchMapObj = Object.fromEntries(epgDb.searchMap.entries());
+    fs.writeFileSync(epgDbPath, JSON.stringify({ channels: channelsObj, searchMap: searchMapObj }), 'utf-8');
+    this.epgDatabase = epgDb;
+  }
+
   saveLastSyncInfo(info) {
     this.ensureDirectories();
     fs.writeFileSync(config.LAST_SYNC_FILE, JSON.stringify(info, null, 2), 'utf-8');
     this.status.lastSync = info;
   }
 
-  /**
-   * Verifica se o arquivo channels.json é recente (menos de 72 horas)
-   */
   isCacheFresh() {
     if (!this.cachedData || !this.status.lastSync || !this.status.lastSync.completedAt) {
       return false;
@@ -111,13 +214,10 @@ class SyncManager {
     return (now - lastSyncTime) < config.SYNC_INTERVAL_MS;
   }
 
-  /**
-   * Inicia o agendador para rodar a cada 72 horas
-   */
   startScheduler() {
     if (this.schedulerTimer) clearInterval(this.schedulerTimer);
 
-    console.log(`[Scheduler] Agendador ativado: Re-verificação a cada 72 horas (${config.SYNC_INTERVAL_MS / (1000 * 60 * 60)}h).`);
+    console.log(`[Scheduler] Agendador ativado: Re-verificação a cada 72 horas.`);
 
     this.schedulerTimer = setInterval(() => {
       console.log('[Scheduler] Disparando atualização agendada de 72 horas...');
@@ -128,7 +228,76 @@ class SyncManager {
   }
 
   /**
-   * Executa o ciclo completo de verificação, teste de streams e associação de EPG
+   * Retorna os canais com cálculo dinâmico em tempo real de o que está passando AGORA
+   */
+  getChannelsDynamic(atDate = new Date()) {
+    if (!this.cachedData) return null;
+
+    const channels = this.cachedData.channels.map(channel => {
+      let liveEpg = {
+        hasEpg: false,
+        channelId: channel.epg?.channelId || null,
+        channelName: channel.epg?.channelName || null,
+        source: channel.epg?.source || null,
+        epgEndpoint: channel.epg?.epgEndpoint || `/api/epg/${channel.id}`,
+        now: null,
+        next: null
+      };
+
+      if (channel.epg && channel.epg.hasEpg && this.epgDatabase) {
+        const live = this.epgDatabase.getLiveProgram(channel.epg.channelId, atDate);
+        liveEpg = {
+          ...liveEpg,
+          hasEpg: true,
+          now: live.now,
+          next: live.next
+        };
+      }
+
+      return {
+        ...channel,
+        epg: liveEpg
+      };
+    });
+
+    return {
+      meta: {
+        ...this.cachedData.meta,
+        queryTimestamp: atDate.toISOString()
+      },
+      channels: channels
+    };
+  }
+
+  /**
+   * Retorna a grade completa de um canal específico para hoje e próximas horas
+   */
+  getChannelEpg(channelIdOrSlug, atDate = new Date()) {
+    if (!this.cachedData || !this.epgDatabase) return null;
+
+    // Procura o canal pelo slug (ex: br-band) ou tvgId
+    const channel = this.cachedData.channels.find(c => c.id === channelIdOrSlug || c.epg?.channelId === channelIdOrSlug);
+    if (!channel || !channel.epg?.channelId) return null;
+
+    const schedule = this.epgDatabase.getChannelSchedule(channel.epg.channelId, atDate);
+    if (!schedule) return null;
+
+    return {
+      channel: {
+        id: channel.id,
+        name: channel.name,
+        country: channel.country,
+        category: channel.category,
+        logo: channel.logo,
+        liveUrl: channel.liveUrl,
+        proxyUrl: channel.proxyUrl
+      },
+      ...schedule
+    };
+  }
+
+  /**
+   * Executa o ciclo completo de verificação estrita, desduplicação e montagem do banco EPG
    */
   async runFullSync() {
     if (this.isSyncing) {
@@ -141,7 +310,7 @@ class SyncManager {
 
     try {
       console.log('====================================================');
-      console.log('[Sync] INICIANDO CICLO DE ATUALIZAÇÃO E VALIDAÇÃO...');
+      console.log('[Sync] INICIANDO CICLO COM TESTES ESTRITOS E EPG DINÂMICO...');
       console.log('====================================================');
 
       // FASE 1: Baixar Listas M3U e Metadados
@@ -169,9 +338,7 @@ class SyncManager {
         }
       }
 
-      console.log(`[Sync] Total bruto coletado: ${allRawStreams.length} transmissões.`);
-
-      // Otimização: Filtra URLs inválidas e desduplica URLs idênticas antes do teste
+      // Deduplica URLs antes dos testes estritos
       const uniqueUrlMap = new Map();
       for (const item of allRawStreams) {
         if (!item.url || (!item.url.startsWith('http://') && !item.url.startsWith('https://'))) continue;
@@ -181,7 +348,7 @@ class SyncManager {
         }
       }
       const streamsToTest = Array.from(uniqueUrlMap.values());
-      console.log(`[Sync] URLs únicas para testar: ${streamsToTest.length} links.`);
+      console.log(`[Sync] URLs únicas para validação estrita: ${streamsToTest.length} links.`);
 
       // Metadados extras da api iptv-org
       const channelsMetaMap = new Map();
@@ -208,9 +375,9 @@ class SyncManager {
         console.warn('[Sync] Aviso ao carregar metadados da api:', metaErr.message);
       }
 
-      // FASE 2: Validação Concorrente de Streams
+      // FASE 2: Validação Estrita de Streams (Manifesto + Download do 1º Fragmento)
       this.status.state = 'testing_streams';
-      this.status.message = `Testando ${streamsToTest.length} links de transmissão...`;
+      this.status.message = `Testando reprodução real de ${streamsToTest.length} streams...`;
       console.log(`[Sync] 2/5: ${this.status.message}`);
 
       this.status.progress = {
@@ -226,34 +393,35 @@ class SyncManager {
         onProgress: (prog) => {
           this.status.progress = prog;
           if (prog.tested % 100 === 0 || prog.tested === prog.total) {
-            console.log(`[Validador] Progresso: ${prog.tested}/${prog.total} (${prog.percent}%) — Ativos confirmados: ${prog.active}`);
+            console.log(`[Validador] Progresso: ${prog.tested}/${prog.total} (${prog.percent}%) — 100% Funcionais: ${prog.active}`);
           }
         }
       });
 
-      console.log(`[Sync] ✔ Testes concluídos! Transmissões ativas validadas: ${activeStreams.length} de ${streamsToTest.length}.`);
+      console.log(`[Sync] ✔ Testes estritos concluídos! Transmissões realmente reproduzíveis: ${activeStreams.length} de ${streamsToTest.length}.`);
 
-      // FASE 3: Carregamento e consolidação de EPG
+      // FASE 3: Carregamento do Banco de Dados Dinâmico de EPG
       this.status.state = 'fetching_epg';
-      this.status.message = 'Baixando e indexando fontes EPG (BrazilTVEPG e IPTV-Org EPG)...';
+      this.status.message = 'Baixando e indexando fontes EPG dinâmicas...';
       console.log(`[Sync] 3/5: ${this.status.message}`);
 
       const epgDatabase = await loadAllEpgSources(config.EPG_SOURCES);
+      this.saveEpgDatabase(epgDatabase);
 
       // FASE 4: Processamento, Desduplicação e Associação EPG
       this.status.state = 'processing';
-      this.status.message = 'Desduplicando canais e associando informações EPG...';
+      this.status.message = 'Desduplicando canais e associando identificadores EPG...';
       console.log(`[Sync] 4/5: ${this.status.message}`);
 
-      const processed = processChannels(activeStreams, epgDatabase, channelsMetaMap);
-      console.log(`[Sync] ✔ Canais únicos consolidados: ${processed.totalChannels} (Canais com EPG associado: ${processed.epgMatchedCount} - ${processed.matchRate}%).`);
+      const processed = processChannels(activeStreams, epgDatabase, channelsMetaMap, config.PORT);
+      console.log(`[Sync] ✔ Canais únicos consolidados: ${processed.totalChannels} (Canais com EPG: ${processed.epgMatchedCount} - ${processed.matchRate}%).`);
 
-      // FASE 5: Montagem do Payload Final e Persistência
+      // FASE 5: Montagem do Payload e Persistência
       const nextUpdateDate = new Date(Date.now() + config.SYNC_INTERVAL_MS);
       const outputPayload = {
         meta: {
           title: 'IPTV & EPG Curated API',
-          version: '1.0.0',
+          version: '1.1.0',
           generatedAt: new Date().toISOString(),
           nextUpdateAt: nextUpdateDate.toISOString(),
           updateIntervalHours: 72,
@@ -275,7 +443,7 @@ class SyncManager {
       const syncSummary = {
         completedAt: new Date().toISOString(),
         durationSeconds: Math.round((Date.now() - startTime) / 1000),
-        testedStreams: allRawStreams.length,
+        testedStreams: streamsToTest.length,
         activeStreams: activeStreams.length,
         totalChannels: processed.totalChannels,
         channelsBR: outputPayload.meta.channelsByCountry.BR,
@@ -287,18 +455,17 @@ class SyncManager {
       this.saveLastSyncInfo(syncSummary);
 
       this.status.state = 'done';
-      this.status.message = `Sincronização concluída com sucesso (${processed.totalChannels} canais ativos salvos).`;
+      this.status.message = `Sincronização concluída com sucesso (${processed.totalChannels} canais 100% funcionais salvos).`;
       this.status.nextSync = nextUpdateDate.toISOString();
 
       console.log('====================================================');
-      console.log(`[Sync] ✔ CICLO CONCLUÍDO COM SUCESSO EM ${syncSummary.durationSeconds}s!`);
+      console.log(`[Sync] ✔ CICLO CONCLUÍDO EM ${syncSummary.durationSeconds}s!`);
       console.log(`[Sync] Arquivo salvo em: ${config.CHANNELS_FILE}`);
-      console.log(`[Sync] Próxima atualização: ${this.status.nextSync}`);
       console.log('====================================================');
 
       return outputPayload;
     } catch (err) {
-      console.error('[Sync] Erro fatal durante a sincronização:', err);
+      console.error('[Sync] Erro fatal:', err);
       this.status.state = 'error';
       this.status.message = `Erro: ${err.message}`;
       throw err;
@@ -308,7 +475,6 @@ class SyncManager {
   }
 }
 
-// Instância singleton do gerenciador
 const syncManager = new SyncManager();
 
 module.exports = syncManager;

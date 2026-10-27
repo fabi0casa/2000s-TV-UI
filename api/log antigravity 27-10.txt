@@ -1,0 +1,194 @@
+histórico de conversa com o antigravity:
+
+ adicionei na raiz do projeto a pasta @iptv-world-EXEMPLO\ dentro dela existe uma implementação de uma api iptv (iptv-org) q chama todos os canais presentes na api e exibe num html(ignore a funcionalidade de favoritos). no arquivo
+  @lista iptv e epg.txt existe outro link para outro repositorio com canais iptv no github o iptv brasil 2026 q tem os links de transmissão direto do github, tem tbm 2 links de repositorios q fornecem informações EPG de canais. O que eu
+  quero que vc faça é criar uma pasta chamada /api na raiz do projeto e implementar uma api em node que vai passar por todos os links de transmissão IPTV do Brasil e dos EUA, testar um por um para ver qual está ativo e qual não está e
+  associar os canais ativos as informações EPG q são divulgadas naqueles outros 2 links q mostram info epg, precisa haver um sistema q associe corretamente os canais as respectivas informações de epg, além de filtrar pra não colocar
+  canais duplicados na lista, faça esse tratamento nos dados e a API no final deve gerar um .json e vai fornecer ele através da porta 1414, a api deve Reverificar as fontes e atualizar esse .json q ele gerou a cada 72 horas. Não
+  implemente a api no projeto atual, apenas crie a api por enquanto
+
+○ Thought for 8m 2s (Launched the command and waiting for its completion. Proceeding to relevant work.)
+● Ran 1 command, checked 1 task (Get-ChildItem -Force · task-2)
+● Explored 1 file (lista iptv e epg.txt)
+… 72 more actions (3 reads, 1 search, 22 edits, 35 commands, 11 tasks: 4 failed) …
+● Edited 1 file (start.bat)
+● Checked 1 task (task-157) (ctrl+o to expand)
+
+▸ Thought for 6s, 179 tokens
+
+  A API Node.js foi criada na pasta /api e o ciclo de validação inicial dos streams IPTV (Brasil e EUA) e associação com as grades EPG já está em execução em segundo plano para gerar o channels.json. Aguardando a conclusão do teste de
+  todos os canais...
+
+○ Thought for 28.5s (All tests have passed, including API endpoint verification for channels and specific country data, returning expected results instantly. Initiating cleanup of any temporary or scratch files within the designated...)
+● Ran 4 commands, checked 1 task (node -e " const fs = require('fs'); const data = JSON.parse(fs.readFileSync('./api/data/channels.json', 'utf-8')); console.log('Metadata:', data.meta); console.log('Total Channels...) (ctrl+o to expand)
+
+▸ Thought for 10s, 845 tokens
+
+  A API Node.js foi criada na pasta api de forma independente do projeto existente. O ciclo de validação inicial já foi executado com sucesso e gerou o arquivo de dados consolidado.
+  ──────
+  ### 📊 Resultados do Ciclo Inicial de Validação
+
+  • Transmissões testadas: 2.514 links (Brasil e EUA via IPTV-Org e IPTV Brasil 2026 / Ramys).
+  • Streams ativos confirmados: 2.078 transmissões ativas com latência verificada.
+  • Canais únicos (desduplicados): 1.633 canais (449 Brasil, 1.184 EUA).
+  • Fontes EPG integradas: 8 fontes consolidadas (BrazilTVEPG e IPTV-Org EPG — 13.547 canais no catálogo EPG).
+  • Canais com EPG vinculado: 459 canais com dados de grade e programação em tempo real (now e next).
+  • Arquivo gerado: channels.json.
+  ──────
+  ### 📁 Estrutura Implementada em /api
+
+    api/
+    ├── package.json              # Configurações do projeto e scripts npm
+    ├── config.js                 # Configuração de portas, timeouts, fontes IPTV e EPG
+    ├── server.js                 # Servidor HTTP na porta 1414 com CORS habilitado
+    ├── start.bat                 # Inicializador rápido para Windows (clique duplo)
+    ├── lib/
+    │   ├── m3uParser.js          # Parser de metadados das listas M3U/M3U8
+    │   ├── streamTester.js       # Validador concorrente de streams (HEAD/GET Range + timeout)
+    │   ├── epgParser.js          # Leitor e indexador XMLTV (BrazilTVEPG e IPTV-Org EPG)
+    │   ├── matcher.js            # Limpeza de títulos, desduplicação e associação EPG
+    │   └── syncManager.js        # Orquestrador de verificação e agendador de 72h
+    ├── data/
+    │   ├── channels.json         # Arquivo gerado servido na porta 1414
+    │   └── last_sync.json        # Relatório e métricas da última sincronização
+    └── README.md                 # Documentação detalhada da API
+  ──────
+  ### 🚀 Como Executar a API
+
+  Você pode iniciar a API de duas formas:
+
+  1. Pelo terminal dentro da pasta api:
+    npm start
+  (ou node server.js)
+  2. Ou dando um duplo clique no arquivo start.bat.
+
+  A API iniciará na porta 1414 (http://localhost:1414).
+  ──────
+  ### 📡 Endpoints Disponíveis
+
+   Endpoint                                                                                                           │ Descrição
+  ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+   GET /                                                                                                              │ Painel de status, métricas e documentação rápida da API
+   GET /channels.json                                                                                                 │ Arquivo JSON principal com todos os canais ativos e EPG associado
+   GET /api/channels                                                                                                  │ Mesmo que /channels.json, com suporte a filtros (?country=BR, ?category=Notícias, ?search=globo, ?hasEpg=true)
+   GET /api/channels/br                                                                                               │ Filtro direto para canais do Brasil
+   GET /api/channels/us                                                                                               │ Filtro direto para canais dos EUA
+   GET /api/status                                                                                                    │ Status do ciclo de vida, progresso de validação e data do próximo sync
+   GET /api/epg                                                                                                       │ Lista de fontes XMLTV e estatísticas
+   POST /api/refresh                                                                                                  │ Força uma re-verificação manual imediata em segundo plano
+  ──────
+  ### 🛡 Tratamento de Dados e Agendamento
+
+  1. Desduplicação Inteligente: Remove ruídos de resolução (FHD, HD, 4K, H.265, 720p, etc.) e consolida transmissões repetidas do mesmo canal em um único item. A transmissão mais rápida se torna a primária (streamUrl) e os demais
+  streams ativos são guardados no array backupStreams.
+  2. Atualização Periódica a cada 72h: O agendador interno re-testa todas as fontes e atualiza o arquivo channels.json atomicamente a cada 72 horas em segundo plano, sem interrupção de serviço.
+
+────────────────────────────────────────────────────────────
+> percebi 2 coisas, vc colocou o EPG de um jeito meio hardcodado junto no channels.js, por acaso quando eu der a requisição ele vai retornar só a programação q tá no json alí? eu tava pensando em ele ser mais dinâmico, só me explica isso
+  pfvr, se quando eu for implementar no site eu vou poder pesquisar a epg em tempo real. E outra coisa, to testando alguns desses canais no navegador, muitos parecem não estar funcionando na verdade, os players web acusam q é problema de
+  CORS do browser e geo-blocked, parece q há maneiras de contornar isso mas não sei como, tipo fazer a requisição com o header de uma maneira q faça o stream pensar q podemos ter acesso ou algo do tipo, analise a situação, se for
+  contornável ajuste para mim, caso não haja casos q não sejam contornáveis, elimine da lista, pq nao faz sentido estar listado se não consigo rodar.
+
+○ Thought for 4m 50s (A verification test of the server using new endpoints is required. Considering two options: starting the server on a test port or running a sync with the new strict tester. Prioritizing a sync now to regenerate...)
+● Ran 5 commands, checked 2 tasks (node -e " const fs = require('fs'); const data = JSON.parse(fs.readFileSync('./api/data/channels.json', 'utf-8')); const sample = data.channels.slice(0, 20); async function testSample() { for (const...)
+● Edited 1 file (test_deep_stream.js)
+… 11 more actions (2 edits, 3 commands, 6 tasks) …
+● Edited 6 files (streamTester.js, epgParser.js, matcher.js, +3)
+● Ran 1 command, checked 1 task (node -e " const syncManager = require('./api/lib/syncManager'); syncManager.runFullSync() .then(() => { console.log('STRICT SYNC COMPLETED SUCCESSFULLY!'); process.exit(0); }) .catc...) (ctrl+o to expand)
+
+  Iniciei a re-validação estrita de todos os 2.514 streams (testando o download real dos fragmentos de vídeo de cada um para descartar geo-bloqueios e links quebrados) e a indexação completa do EPG dinâmico. Aguardando a conclusão do
+  processo em segundo plano para apresentar o resultado final...
+
+○ Thought for 40.9s (The initial test yielded a successful M3U8 rewrite, including a wildcard CORS header, confirming the proxy's ability to circumvent CORS restrictions. This should allow direct playback in a web browser using stand...)
+● Ran 3 commands, checked 5 tasks (node -e " const { server, start } = require('./api/server'); start(); setTimeout(async () => { try { console.log('Testing new dynamic and proxy endpoints:'); // 1. Dynamic /channe...) (ctrl+o to expand)
+
+▸ Thought for 18s, 1.1k tokens
+
+  Entendi perfeitamente as suas duas preocupações e implementei uma solução completa e robusta para ambas. Abaixo explico o que foi feito em detalhes:
+  ──────
+  ### 1. EPG Dinâmico em Tempo Real (Não é mais estático)
+
+  #### Como funcionava antes vs. Como funciona agora:
+
+  • Antes: O JSON gravava um snapshot congelado do que estava passando no minuto em que o arquivo foi gerado. Se você abrisse o site horas depois, a programação estaria defasada.
+  • Agora (100% Dinâmico):
+      1. O catálogo completo de programação das fontes (BrazilTVEPG e IPTV-Org EPG) fica carregado e indexado em memória no servidor da API (epg_database.json).
+      2. Sempre que seu site faz uma requisição para GET /channels.json ou GET /api/channels, a API compara o horário atual do sistema (new Date()) com o início e fim dos programas e calcula no exato segundo da requisição o programa
+      que está passando agora (now), a porcentagem decorrida (progressPercent) e o próximo (next).
+      3. Novos Endpoints para o seu Frontend:
+          • GET /api/epg/:channelId (ex: http://localhost:1414/api/epg/br-amc): Retorna a grade diária completa daquele canal (linha do tempo com todos os programas do dia, sinopses e horários) para quando o usuário clicar no canal no
+          site.
+          • GET /api/epg/live: Retorna instantaneamente o programa no ar de todos os canais ao mesmo tempo.
+
+
+  ──────
+  ### 2. Por que os canais falhavam no navegador e como foi resolvido
+
+  #### Análise da Situação:
+
+  1. Bloqueio de CORS do Navegador: Players web (hls.js, video.js) rodam sob a política de segurança do browser. Muitas fontes (como a Pluto TV e servidores privados) enviam Access-Control-Allow-Origin: http://pluto.tv ou nenhum
+  cabeçalho CORS. Em players desktop (VLC/TiviMate) funciona, mas o navegador bloqueia com erro de CORS.
+  2. Links .ts diretos: Várias listas usam links terminados em .ts brutos. O hls.js no navegador espera manifestos .m3u8 e quebrava com erro de análise.
+  3. Geo-bloqueios e Tokens Expirados: Vários links de serviços internacionais retornavam erro 414 URI Too Long, 403 Forbidden ou fragmentos com mensagens de restrição regional para IPs do Brasil.
+  ──────
+  ### 🛠 O que foi ajustado na API:
+
+  #### A) Stream Proxy Embutido (/live/:channelId.m3u8 e /proxy?url=...)
+
+  Como a sua API em Node.js roda localmente na máquina, ela não tem restrições de CORS de navegador:
+
+  • Criamos o endpoint /live/:channelId.m3u8 (ex: http://localhost:1414/live/br-band-bahia.m3u8).
+  • Quando o player do seu site chama esse endereço:
+      1. A API busca o stream na fonte original simulando cabeçalhos de players legítimos.
+      2. A API reescreve o manifesto .m3u8 para que todos os fragmentos de vídeo (.ts) também passem pelo proxy local.
+      3. A API devolve o vídeo com Access-Control-Allow-Origin: *.
+      4. Resultado: 100% livre de erros de CORS no navegador!
+
+
+  #### B) Validação Estrita com Download do 1º Fragmento (Expurgo de Inativos)
+
+  Conforme solicitado ("caso não haja casos q não sejam contornáveis, elimine da lista"), atualizamos o validador para realizar uma checagem profunda:
+
+  1. Links .ts de servidores Xtream são automaticamente convertidos para a versão HLS .m3u8.
+  2. O validador baixa o manifesto .m3u8 e verifica se não há mensagens de erro de geo-bloqueio.
+  3. Ele baixa o primeiro fragmento de vídeo real: se o fragmento der 414, 403 ou falha de conexão, o stream é eliminado imediatamente.
+  4. Dos 2.514 links originais, mais de 1.090 transmissões quebradas/geo-bloqueadas foram descartadas, restando 1.192 canais comprovadamente funcionais.
+  ──────
+  ### 📋 Exemplo do Canal no channels.json Atualizado
+
+    {
+      "id": "br-amc",
+      "name": "AMC",
+      "country": "BR",
+      "countryName": "Brasil",
+      "category": "Filmes & Séries",
+      "logo": "https://i.imgur.com/E84jnP8.png",
+      "streamUrl": "http://45.185.11.126:8000/play/a06s/index.m3u8",
+      "liveUrl": "http://localhost:1414/live/br-amc.m3u8",
+      "proxyUrl": "http://localhost:1414/proxy?url=http%3A%2F%2F45.185.11.126%3A8000%2Fplay%2Fa06s%2Findex.m3u8",
+      "corsNative": true,
+      "isHls": true,
+      "epg": {
+        "hasEpg": true,
+        "channelId": "AMC HD",
+        "channelName": "AMC HD",
+        "source": "BrazilTVEPG - Claro TV+",
+        "epgEndpoint": "/api/epg/br-amc",
+        "now": {
+          "title": "Uncharted: Fora do Mapa",
+          "description": "Nathan Drake e Victor Sullivan embarcam em busca de um tesouro...",
+          "start": "2026-10-27T01:50:00.000Z",
+          "stop": "2026-10-27T04:00:00.000Z",
+          "progressPercent": 65
+        },
+        "next": {
+          "title": "A Vigilante do Amanhã: Ghost in the Shell",
+          "description": "Major é uma humana salva de um acidente terrível...",
+          "start": "2026-10-27T04:00:00.000Z",
+          "stop": "2026-10-27T06:15:00.000Z"
+        }
+      }
+    }
+
+  • Para tocar no player web do seu site: basta passar channel.liveUrl (http://localhost:1414/live/br-amc.m3u8).
+  • Para abrir o guia de programação do canal: basta fazer fetch('http://localhost:1414/api/epg/' + channel.id).

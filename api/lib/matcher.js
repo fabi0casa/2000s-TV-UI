@@ -3,8 +3,10 @@
  * Responsável por:
  *  1. Limpar e padronizar nomes de canais
  *  2. Unificar transmissões duplicadas (priorizando a menor latência e guardando alternativas em backupUrls)
- *  3. Associar com máxima precisão os canais às informações e grade de programação EPG
+ *  3. Associar canais ao banco de dados EPG com suporte a consultas dinâmicas em tempo real
  */
+
+const config = require('../config');
 
 /**
  * Remove resoluções, codecs, formatos e ruídos para obter o nome limpo e canônico
@@ -44,9 +46,6 @@ function getCanonicalKey(name, country = 'BR') {
   return `${country.toUpperCase()}:${normalized}`;
 }
 
-/**
- * Mapeamento de categorias comuns para português legível
- */
 const CATEGORY_MAP = {
   'news': 'Notícias',
   'sports': 'Esportes',
@@ -75,7 +74,6 @@ function standardizeCategory(rawCategory) {
     if (lower.includes(key)) return val;
   }
 
-  // Tratamento de termos em português
   if (lower.includes('noticia') || lower.includes('notícia') || lower.includes('jornal')) return 'Notícias';
   if (lower.includes('esporte') || lower.includes('futebol')) return 'Esportes';
   if (lower.includes('filme') || lower.includes('cinema') || lower.includes('serie')) return 'Filmes & Séries';
@@ -88,15 +86,12 @@ function standardizeCategory(rawCategory) {
 }
 
 /**
- * Agrupa transmissões ativas, remove duplicatas e associa EPG
- * @param {Array} activeStreams - Streams testados e confirmados como ativos
- * @param {Object} epgDatabase - Objeto de consulta EPG carregado pelo epgParser
- * @param {Map} [channelsMetadata] - Metadados complementares opcionais (ex: logos oficiais da api iptv-org)
+ * Agrupa transmissões ativas, remove duplicatas e associa metadados e EPG
  */
-function processChannels(activeStreams, epgDatabase, channelsMetadata = new Map()) {
+function processChannels(activeStreams, epgDatabase, channelsMetadata = new Map(), apiPort = 1414) {
   const channelGroups = new Map();
 
-  // 1. Agrupamento por chave canônica (elimina canais duplicados)
+  // 1. Agrupamento por chave canônica
   for (const stream of activeStreams) {
     const rawTitle = stream.rawTitle || stream.tvgName || stream.title || 'Canal Desconhecido';
     const cleanName = cleanChannelName(rawTitle) || rawTitle;
@@ -118,78 +113,44 @@ function processChannels(activeStreams, epgDatabase, channelsMetadata = new Map(
 
     const group = channelGroups.get(groupKey);
 
-    // Complementa tvgId ou tvgLogo se ainda não tiver
     if (!group.tvgId && stream.tvgId) group.tvgId = stream.tvgId;
     if (!group.tvgLogo && stream.tvgLogo) group.tvgLogo = stream.tvgLogo;
 
-    // Adiciona stream à lista de transmissões deste canal
     group.streams.push({
       url: stream.url,
       sourceId: stream.sourceId,
       latencyMs: stream.latencyMs || 0,
       statusCode: stream.statusCode || 200,
+      corsNative: stream.corsNative === true,
+      isHls: stream.isHls !== false,
       verifiedAt: stream.verifiedAt || new Date().toISOString()
     });
   }
 
-  // 2. Monta a lista final tratada e associa ao EPG
+  // 2. Monta a lista final tratada
   const finalChannels = [];
   let epgMatchedCount = 0;
 
   for (const group of channelGroups.values()) {
-    // Ordena streams da menor latência para a maior
-    group.streams.sort((a, b) => a.latencyMs - b.latencyMs);
+    // Prioriza streams com suporte nativo a CORS e menor latência
+    group.streams.sort((a, b) => {
+      if (a.corsNative && !b.corsNative) return -1;
+      if (!a.corsNative && b.corsNative) return 1;
+      return a.latencyMs - b.latencyMs;
+    });
 
     const primaryStream = group.streams[0];
     const backupStreams = group.streams.slice(1).map(s => s.url);
 
-    // Busca metadados extras na api iptv-org se existir tvgId
     const meta = group.tvgId ? channelsMetadata.get(group.tvgId) : null;
     const logo = group.tvgLogo || (meta ? meta.logo : '') || '';
     const category = group.category !== 'Geral'
       ? group.category
       : (meta && meta.categories && meta.categories[0] ? standardizeCategory(meta.categories[0]) : group.category);
 
-    // 3. Associação inteligente de EPG
+    // Associação de EPG
     const epgMatch = epgDatabase ? epgDatabase.findEpg(group.tvgId, group.name, group.country) : null;
 
-    let epgInfo = null;
-    if (epgMatch) {
-      epgMatchedCount++;
-      epgInfo = {
-        hasEpg: true,
-        channelId: epgMatch.id,
-        channelName: epgMatch.name,
-        source: epgMatch.source,
-        xmltvUrl: epgMatch.xmltvUrl,
-        now: epgMatch.currentProgram ? {
-          title: epgMatch.currentProgram.title,
-          description: epgMatch.currentProgram.description,
-          category: epgMatch.currentProgram.category,
-          start: epgMatch.currentProgram.start,
-          stop: epgMatch.currentProgram.stop
-        } : null,
-        next: epgMatch.nextProgram ? {
-          title: epgMatch.nextProgram.title,
-          description: epgMatch.nextProgram.description,
-          category: epgMatch.nextProgram.category,
-          start: epgMatch.nextProgram.start,
-          stop: epgMatch.nextProgram.stop
-        } : null
-      };
-    } else {
-      epgInfo = {
-        hasEpg: false,
-        channelId: group.tvgId || null,
-        channelName: null,
-        source: null,
-        xmltvUrl: null,
-        now: null,
-        next: null
-      };
-    }
-
-    // Identificador único amigável do canal
     const safeSlug = group.name
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
@@ -200,6 +161,28 @@ function processChannels(activeStreams, epgDatabase, channelsMetadata = new Map(
 
     const channelId = `${group.country.toLowerCase()}-${safeSlug || 'tv'}`;
 
+    let epgInfo = null;
+    if (epgMatch) {
+      epgMatchedCount++;
+      epgInfo = {
+        hasEpg: true,
+        channelId: epgMatch.id,
+        channelName: epgMatch.name,
+        source: epgMatch.source,
+        xmltvUrl: epgMatch.xmltvUrl,
+        epgEndpoint: `/api/epg/${channelId}`
+      };
+    } else {
+      epgInfo = {
+        hasEpg: false,
+        channelId: group.tvgId || null,
+        channelName: null,
+        source: null,
+        xmltvUrl: null,
+        epgEndpoint: `/api/epg/${channelId}`
+      };
+    }
+
     finalChannels.push({
       id: channelId,
       name: group.name,
@@ -207,17 +190,22 @@ function processChannels(activeStreams, epgDatabase, channelsMetadata = new Map(
       countryName: group.country === 'BR' ? 'Brasil' : 'Estados Unidos',
       category: category,
       logo: logo,
+      // Stream original
       streamUrl: primaryStream.url,
+      // URL direta do proxy local da API que contorna 100% dos bloqueios de CORS e cabeçalhos no navegador
+      liveUrl: `http://localhost:${apiPort}/live/${channelId}.m3u8`,
+      proxyUrl: `http://localhost:${apiPort}/proxy?url=${encodeURIComponent(primaryStream.url)}`,
+      corsNative: primaryStream.corsNative,
+      isHls: primaryStream.isHls,
       backupStreams: backupStreams,
       totalStreamsAvailable: group.streams.length,
       latencyMs: primaryStream.latencyMs,
-      statusCode: primaryStream.statusCode,
       verifiedAt: primaryStream.verifiedAt,
       epg: epgInfo
     });
   }
 
-  // Ordena alfabeticamente por país e depois nome
+  // Ordena por país e nome
   finalChannels.sort((a, b) => {
     if (a.country !== b.country) return a.country.localeCompare(b.country);
     return a.name.localeCompare(b.name, 'pt-BR');
