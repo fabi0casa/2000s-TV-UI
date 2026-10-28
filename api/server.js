@@ -392,7 +392,7 @@ async function start() {
     console.log(` Proxy de Streams: http://localhost:${config.PORT}/live/:channelId.m3u8`);
     console.log(` EPG em Tempo Real: http://localhost:${config.PORT}/api/epg/:channelId`);
     console.log(` Status em tempo real: http://localhost:${config.PORT}/api/status`);
-    console.log(` Ciclo de atualização automática: a cada 72 horas`);
+    console.log(` Ciclo de atualização automática: a cada 6 horas`);
     console.log('===========================================================');
 
     const forceSync = process.argv.includes('--sync-now');

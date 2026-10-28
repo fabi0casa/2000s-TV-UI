@@ -4,8 +4,8 @@ module.exports = {
   // Porta do servidor HTTP conforme especificação
   PORT: parseInt(process.env.PORT, 10) || 1414,
 
-  // Intervalo de re-verificação automática (72 horas em milissegundos)
-  SYNC_INTERVAL_MS: 72 * 60 * 60 * 1000, // 72 horas (259.200.000 ms)
+  // Intervalo de re-verificação automática (6 horas em milissegundos)
+  SYNC_INTERVAL_MS: 6 * 60 * 60 * 1000, // 6 horas (21.600.000 ms)
 
   // Configurações do validador de streams
   VALIDATOR: {
