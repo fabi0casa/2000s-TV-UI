@@ -617,13 +617,27 @@ html, body {
     box-sizing: border-box;
 }
 
+.epg-timeline-header-track {
+    flex: 1;
+    display: flex;
+    height: 100%;
+    min-width: 0;
+}
+
 .epg-time-slot-header {
     flex: 1;
-    padding: 0 16px;
+    padding: 0 10px;
     display: flex;
     align-items: center;
     border-right: 1px solid #134685;
     letter-spacing: 0.5px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #9cd3ff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-sizing: border-box;
 }
 
 /* Grid Channels & Programs Body */
@@ -736,22 +750,41 @@ html, body {
 }
 
 .epg-program-block {
-    flex: 1;
     height: 100%;
-    padding: 0 14px;
+    padding: 0 12px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    border-right: 1px solid #0b417c;
+    gap: 8px;
+    border-right: 2px solid rgba(80, 165, 255, 0.45);
     color: #cfdfee;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
     cursor: pointer;
     position: relative;
-    transition: all 0.15s ease;
-    min-width: 0;
+    transition: background 0.15s ease, color 0.15s ease;
+    min-width: 60px;
+    box-sizing: border-box;
+}
+
+.epg-program-block.epg-no-info {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+    border-right: none;
+    color: rgba(185, 215, 245, 0.7);
+    font-style: italic;
+    font-size: 15px;
+    font-weight: 500;
+    padding-left: 18px;
+    justify-content: flex-start;
+}
+
+.epg-no-info-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.3px;
 }
 
 .epg-block-time {
@@ -806,6 +839,12 @@ html, body {
 
 .epg-program-block.selected .epg-block-title {
     color: #1a0800 !important;
+}
+
+.epg-program-block.selected .epg-no-info-text {
+    color: #1a0800 !important;
+    font-style: normal;
+    font-weight: 700;
 }
 
 .epg-program-arrow {

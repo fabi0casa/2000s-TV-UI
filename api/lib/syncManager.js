@@ -246,11 +246,15 @@ class SyncManager {
 
       if (channel.epg && channel.epg.hasEpg && this.epgDatabase) {
         const live = this.epgDatabase.getLiveProgram(channel.epg.channelId, atDate);
+        const schedule = this.epgDatabase.getChannelSchedule(channel.epg.channelId, atDate, 12);
+        const progs = schedule?.programs || [];
+        const hasValid = Boolean(live?.now || progs.length > 0);
         liveEpg = {
           ...liveEpg,
-          hasEpg: true,
-          now: live.now,
-          next: live.next
+          hasEpg: hasValid,
+          now: live?.now || (progs.length > 0 ? progs[0] : null),
+          next: live?.next || (progs.length > 1 ? progs[1] : null),
+          programs: progs
         };
       }
 

@@ -67,7 +67,9 @@ class RetroTVController {
         this.pendingYouTubeId = null;
         this.mediaOSDTimeout = null;
         this.hls = null;
-        this.apiBaseUrl = 'http://localhost:1414';
+        this.apiBaseUrl = (typeof window !== 'undefined' && window.location && window.location.hostname)
+            ? `http://${window.location.hostname}:1414`
+            : 'http://localhost:1414';
         this.epgProgramsCache = new Map();
 
         // Remote LED Blinking State
@@ -677,7 +679,7 @@ class RetroTVController {
         this.closeMiniGuide();
 
         this.guideSelectedChannelIndex = this.currentChannelIndex;
-        this.guideSelectedSlotIndex = 1;
+        this.guideSelectedSlotIndex = 0;
         this.updateEPGSelection();
 
         this.epgGuide.classList.remove('hidden');
@@ -714,19 +716,47 @@ class RetroTVController {
         if (!rowsContainer) return;
         rowsContainer.innerHTML = '';
 
-        const elSlot0 = document.getElementById('epg-time-slot-0');
-        const elSlot1 = document.getElementById('epg-time-slot-1');
-        const elSlot2 = document.getElementById('epg-time-slot-2');
-        if (elSlot0) elSlot0.innerText = 'NO AR AGORA';
-        if (elSlot1) elSlot1.innerText = 'A SEGUIR';
-        if (elSlot2) elSlot2.innerText = 'DEPOIS';
+        // Calcula a janela da linha do tempo: 3 horas a partir da meia hora atual
+        const now = new Date();
+        const baseMin = now.getMinutes() < 30 ? 0 : 30;
+        const windowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), baseMin, 0, 0);
+        const windowStartMs = windowStart.getTime();
+        const windowDurationMs = 3 * 60 * 60 * 1000; // 3 horas de janela
+        const windowEndMs = windowStartMs + windowDurationMs;
+
+        this.guideWindowStartMs = windowStartMs;
+        this.guideWindowEndMs = windowEndMs;
+
+        // Atualiza cabeçalho com a data (ex: "Dom 08/11")
+        const dateHeader = document.getElementById('epg-date-label');
+        if (dateHeader) {
+            const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+            const dayName = days[now.getDay()];
+            const dayNum = String(now.getDate()).padStart(2, '0');
+            const monthNum = String(now.getMonth() + 1).padStart(2, '0');
+            dateHeader.innerText = `${dayName} ${dayNum}/${monthNum}`;
+        }
+
+        // Gera 6 colunas de meia hora no cabeçalho da linha do tempo (ex: 13:00, 13:30, 14:00, 14:30...)
+        const headerContainer = document.getElementById('epg-timeline-header-track');
+        if (headerContainer) {
+            headerContainer.innerHTML = '';
+            for (let i = 0; i < 6; i++) {
+                const slotTime = new Date(windowStartMs + i * 30 * 60 * 1000);
+                const slotDiv = document.createElement('div');
+                slotDiv.className = 'epg-time-slot-header';
+                slotDiv.id = `epg-time-slot-${i}`;
+                slotDiv.innerText = window.formatTime12 ? window.formatTime12(slotTime) : slotTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                headerContainer.appendChild(slotDiv);
+            }
+        }
 
         this.channels.forEach((ch, chIdx) => {
             const row = document.createElement('div');
             row.className = 'epg-row';
             row.id = `epg-row-${chIdx}`;
 
-            // Channel Label Cell (left)
+            // Coluna do Canal (esquerda)
             const chCell = document.createElement('div');
             chCell.className = 'epg-channel-cell';
             const logoHtml = ch.logo
@@ -740,48 +770,89 @@ class RetroTVController {
             `;
             chCell.addEventListener('click', () => {
                 this.guideSelectedChannelIndex = chIdx;
+                this.guideSelectedSlotIndex = 0;
                 this.tuneChannelByIndex(chIdx);
                 this.closeGuide();
             });
             row.appendChild(chCell);
 
-            // Programs Track (right)
+            // Grade de Programas (direita)
             const progTrack = document.createElement('div');
             progTrack.className = 'epg-programs-track';
 
-            // Generate 3 schedule program slots for timeline
-            const schedule = ch.schedule || [
-                { title: ch.title, time: "--:--", timeSlot: "--:--" },
-                { title: ch.title, time: "--:--", timeSlot: "--:--" },
-                { title: ch.title, time: "--:--", timeSlot: "--:--" }
-            ];
+            const hasRealEpg = Boolean(ch.epg && ch.epg.hasEpg && ch.schedule && ch.schedule.length > 0);
 
-            schedule.slice(0, 3).forEach((item, slotIdx) => {
-                const block = document.createElement('div');
-                block.className = 'epg-program-block';
-                block.id = `epg-block-${chIdx}-${slotIdx}`;
-                
-                // Add retro < or > overflow markers
-                const prefix = slotIdx === 0 ? '< ' : '';
-                const suffix = slotIdx === 2 ? ' >' : '';
-                const timeTag = item.time && item.time !== '--:--' ? `<span class="epg-block-time">${item.time}</span>` : '';
+            if (!hasRealEpg) {
+                // CANAL SEM EPG: Barra única contínua com texto exato do print do usuário
+                const noInfoBlock = document.createElement('div');
+                noInfoBlock.className = 'epg-program-block epg-no-info';
+                noInfoBlock.id = `epg-block-${chIdx}-0`;
+                noInfoBlock.innerHTML = `<span class="epg-no-info-text">sem informações de programação...</span>`;
 
-                block.innerHTML = `
-                    ${timeTag}
-                    <span class="epg-block-title" title="${item.title}">${prefix}${item.title}</span>
-                    <span class="epg-program-arrow">${suffix}</span>
-                `;
-
-                block.addEventListener('click', () => {
+                noInfoBlock.addEventListener('click', () => {
                     this.guideSelectedChannelIndex = chIdx;
-                    this.guideSelectedSlotIndex = slotIdx;
+                    this.guideSelectedSlotIndex = 0;
                     this.updateEPGSelection();
                     this.tuneChannelByIndex(chIdx);
                     this.closeGuide();
                 });
 
-                progTrack.appendChild(block);
-            });
+                progTrack.appendChild(noInfoBlock);
+            } else {
+                // CANAL COM EPG: Filtra os programas que intersectam com a janela de tempo
+                let visiblePrograms = ch.schedule.filter(p => {
+                    const pStart = new Date(p.start).getTime();
+                    const pStop = new Date(p.stop).getTime();
+                    return pStop > windowStartMs && pStart < windowEndMs;
+                });
+
+                if (visiblePrograms.length === 0) {
+                    visiblePrograms = ch.schedule.slice(0, 3);
+                }
+
+                const totalDurMs = windowDurationMs;
+
+                visiblePrograms.forEach((item, slotIdx) => {
+                    const block = document.createElement('div');
+                    block.className = 'epg-program-block';
+                    block.id = `epg-block-${chIdx}-${slotIdx}`;
+
+                    const pStartMs = new Date(item.start).getTime();
+                    const pStopMs = new Date(item.stop).getTime();
+
+                    const effectiveStart = Math.max(windowStartMs, pStartMs);
+                    const effectiveStop = Math.min(windowEndMs, pStopMs);
+                    const dur = Math.max(10 * 60 * 1000, effectiveStop - effectiveStart);
+                    const pct = Math.max(8, (dur / totalDurMs) * 100);
+
+                    block.style.flex = `${pct} 0 auto`;
+                    block.style.minWidth = '70px';
+
+                    const hasOverflowLeft = pStartMs < windowStartMs;
+                    const hasOverflowRight = pStopMs > windowEndMs;
+                    const prefix = hasOverflowLeft ? '< ' : '';
+                    const suffix = hasOverflowRight ? ' >' : '';
+
+                    const timeStr = item.timeBadge || item.time || (window.formatTimeBadge ? window.formatTimeBadge(item.start) : '');
+                    const timeTag = timeStr && timeStr !== '--:--' ? `<span class="epg-block-time">${timeStr}</span>` : '';
+
+                    block.innerHTML = `
+                        ${timeTag}
+                        <span class="epg-block-title" title="${item.title}">${prefix}${item.title}</span>
+                        ${suffix ? `<span class="epg-program-arrow">${suffix}</span>` : ''}
+                    `;
+
+                    block.addEventListener('click', () => {
+                        this.guideSelectedChannelIndex = chIdx;
+                        this.guideSelectedSlotIndex = slotIdx;
+                        this.updateEPGSelection();
+                        this.tuneChannelByIndex(chIdx);
+                        this.closeGuide();
+                    });
+
+                    progTrack.appendChild(block);
+                });
+            }
 
             row.appendChild(progTrack);
             rowsContainer.appendChild(row);
@@ -792,12 +863,13 @@ class RetroTVController {
      * Update Guide Highlight Cursor and Details Header
      */
     updateEPGSelection() {
-        // Clear previous selected elements
+        // Limpa seleções anteriores
         document.querySelectorAll('.epg-row.selected').forEach(el => el.classList.remove('selected'));
         document.querySelectorAll('.epg-program-block.selected').forEach(el => el.classList.remove('selected'));
 
         const row = document.getElementById(`epg-row-${this.guideSelectedChannelIndex}`);
-        const block = document.getElementById(`epg-block-${this.guideSelectedChannelIndex}-${this.guideSelectedSlotIndex}`);
+        const block = document.getElementById(`epg-block-${this.guideSelectedChannelIndex}-${this.guideSelectedSlotIndex}`) ||
+                      document.getElementById(`epg-block-${this.guideSelectedChannelIndex}-0`);
 
         if (row) {
             row.classList.add('selected');
@@ -807,7 +879,6 @@ class RetroTVController {
             block.classList.add('selected');
         }
 
-        // Update Guide Header Synopsis and Details based on selection
         const ch = this.channels[this.guideSelectedChannelIndex];
         if (ch) {
             const headlineEl = document.getElementById('epg-headline-text');
@@ -815,12 +886,20 @@ class RetroTVController {
             const timeslotEl = document.getElementById('epg-timeslot');
             const ratingEl = document.getElementById('epg-rating');
 
-            const currentSlot = (ch.schedule && ch.schedule[this.guideSelectedSlotIndex]) ? ch.schedule[this.guideSelectedSlotIndex] : null;
+            const hasRealEpg = Boolean(ch.epg && ch.epg.hasEpg && ch.schedule && ch.schedule.length > 0);
+            const currentSlot = hasRealEpg && ch.schedule[this.guideSelectedSlotIndex] ? ch.schedule[this.guideSelectedSlotIndex] : null;
 
-            if (headlineEl) headlineEl.innerText = ch.name ? `${ch.name.toUpperCase()} (2009)` : (ch.title || 'AQUANET TV');
-            if (synopsisEl) synopsisEl.innerText = (currentSlot && currentSlot.description) || ch.description || 'Programação normal de transmissão.';
-            if (timeslotEl) timeslotEl.innerText = (currentSlot && currentSlot.timeSlot) || ch.timeSlot || '--:-- - --:--';
-            if (ratingEl) ratingEl.innerText = (currentSlot && currentSlot.rating) || ch.rating || 'LIVRE';
+            if (currentSlot) {
+                if (headlineEl) headlineEl.innerText = `${ch.id} - ${ch.name ? ch.name.toUpperCase() : ch.code} | ${currentSlot.title}`;
+                if (synopsisEl) synopsisEl.innerText = currentSlot.description || `Transmissão ao vivo do canal ${ch.name}.`;
+                if (timeslotEl) timeslotEl.innerText = currentSlot.timeSlot || '--:-- - --:--';
+                if (ratingEl) ratingEl.innerText = currentSlot.rating || 'LIVRE';
+            } else {
+                if (headlineEl) headlineEl.innerText = `${ch.id} - ${ch.name ? ch.name.toUpperCase() : ch.code}`;
+                if (synopsisEl) synopsisEl.innerText = `Sem informações de programação disponíveis para este canal no momento. Transmissão contínua da emissora.`;
+                if (timeslotEl) timeslotEl.innerText = ch.timeSlot || '--:-- - --:--';
+                if (ratingEl) ratingEl.innerText = 'LIVRE';
+            }
 
             // Live preview in PIP box
             this.pipFeed.setChannelType(ch.type);
@@ -847,74 +926,90 @@ class RetroTVController {
             const data = await res.json();
             if (data && Array.isArray(data.programs) && data.programs.length > 0) {
                 this.epgProgramsCache.set(ch.slug, data.programs);
-                const liveProg = data.programs.find(p => p.isLive) || data.programs[0];
-                const liveIdx = data.programs.indexOf(liveProg);
-                const next1 = data.programs[liveIdx + 1];
-                const next2 = data.programs[liveIdx + 2];
 
-                ch.schedule = [
-                    {
-                        time: window.formatTime12 ? window.formatTime12(liveProg.start) : '--:--',
-                        timeSlot: window.formatTimeSlot ? window.formatTimeSlot(liveProg.start, liveProg.stop) : '--:--',
-                        title: liveProg.title,
-                        description: liveProg.description || ch.description,
-                        rating: "LIVRE",
-                        current: true
-                    },
-                    next1 ? {
-                        time: window.formatTime12 ? window.formatTime12(next1.start) : '--:--',
-                        timeSlot: window.formatTimeSlot ? window.formatTimeSlot(next1.start, next1.stop) : '--:--',
-                        title: next1.title,
-                        description: next1.description || '',
-                        rating: "LIVRE",
-                        current: false
-                    } : ch.schedule[1],
-                    next2 ? {
-                        time: window.formatTime12 ? window.formatTime12(next2.start) : '--:--',
-                        timeSlot: window.formatTimeSlot ? window.formatTimeSlot(next2.start, next2.stop) : '--:--',
-                        title: next2.title,
-                        description: next2.description || '',
-                        rating: "LIVRE",
-                        current: false
-                    } : ch.schedule[2]
-                ];
+                ch.schedule = data.programs.map(p => ({
+                    time: window.formatTime12 ? window.formatTime12(p.start) : '--:--',
+                    timeBadge: window.formatTimeBadge ? window.formatTimeBadge(p.start) : '',
+                    timeSlot: window.formatTimeSlot ? window.formatTimeSlot(p.start, p.stop) : '--:--',
+                    title: p.title,
+                    description: p.description || '',
+                    category: p.category || ch.category || '',
+                    rating: "LIVRE",
+                    current: Boolean(p.isLive),
+                    start: p.start,
+                    stop: p.stop
+                }));
 
-                // Atualiza os blocos da linha desse canal no grid com os horários e títulos reais
                 const chIdx = this.channels.indexOf(ch);
                 if (chIdx !== -1) {
-                    ch.schedule.slice(0, 3).forEach((item, slotIdx) => {
-                        const block = document.getElementById(`epg-block-${chIdx}-${slotIdx}`);
-                        if (block) {
-                            const prefix = slotIdx === 0 ? '< ' : '';
-                            const suffix = slotIdx === 2 ? ' >' : '';
-                            const timeTag = item.time && item.time !== '--:--' ? `<span class="epg-block-time">${item.time}</span>` : '';
-                            block.innerHTML = `
-                                ${timeTag}
-                                <span class="epg-block-title" title="${item.title}">${prefix}${item.title}</span>
-                                <span class="epg-program-arrow">${suffix}</span>
-                            `;
+                    const row = document.getElementById(`epg-row-${chIdx}`);
+                    if (row) {
+                        const progTrack = row.querySelector('.epg-programs-track');
+                        if (progTrack) {
+                            progTrack.innerHTML = '';
+                            const windowStartMs = this.guideWindowStartMs || Date.now();
+                            const windowDurationMs = 3 * 60 * 60 * 1000;
+                            const windowEndMs = windowStartMs + windowDurationMs;
+
+                            let visiblePrograms = ch.schedule.filter(p => {
+                                const pStart = new Date(p.start).getTime();
+                                const pStop = new Date(p.stop).getTime();
+                                return pStop > windowStartMs && pStart < windowEndMs;
+                            });
+
+                            if (visiblePrograms.length === 0) {
+                                visiblePrograms = ch.schedule.slice(0, 3);
+                            }
+
+                            visiblePrograms.forEach((item, slotIdx) => {
+                                const block = document.createElement('div');
+                                block.className = 'epg-program-block';
+                                block.id = `epg-block-${chIdx}-${slotIdx}`;
+
+                                const pStartMs = new Date(item.start).getTime();
+                                const pStopMs = new Date(item.stop).getTime();
+                                const effectiveStart = Math.max(windowStartMs, pStartMs);
+                                const effectiveStop = Math.min(windowEndMs, pStopMs);
+                                const dur = Math.max(10 * 60 * 1000, effectiveStop - effectiveStart);
+                                const pct = Math.max(8, (dur / windowDurationMs) * 100);
+
+                                block.style.flex = `${pct} 0 auto`;
+                                block.style.minWidth = '70px';
+
+                                const hasOverflowLeft = pStartMs < windowStartMs;
+                                const hasOverflowRight = pStopMs > windowEndMs;
+                                const prefix = hasOverflowLeft ? '< ' : '';
+                                const suffix = hasOverflowRight ? ' >' : '';
+
+                                const timeStr = item.timeBadge || item.time || '';
+                                const timeTag = timeStr && timeStr !== '--:--' ? `<span class="epg-block-time">${timeStr}</span>` : '';
+
+                                block.innerHTML = `
+                                    ${timeTag}
+                                    <span class="epg-block-title" title="${item.title}">${prefix}${item.title}</span>
+                                    ${suffix ? `<span class="epg-program-arrow">${suffix}</span>` : ''}
+                                `;
+
+                                block.addEventListener('click', () => {
+                                    this.guideSelectedChannelIndex = chIdx;
+                                    this.guideSelectedSlotIndex = slotIdx;
+                                    this.updateEPGSelection();
+                                    this.tuneChannelByIndex(chIdx);
+                                    this.closeGuide();
+                                });
+
+                                progTrack.appendChild(block);
+                            });
                         }
-                    });
+                    }
                 }
 
                 if (this.isGuideOpen && this.guideSelectedChannelIndex === chIdx) {
-                    const synopsisEl = document.getElementById('epg-synopsis-text');
-                    const timeslotEl = document.getElementById('epg-timeslot');
-                    const ratingEl = document.getElementById('epg-rating');
-                    const currentSlot = ch.schedule[this.guideSelectedSlotIndex];
-                    if (synopsisEl && currentSlot) {
-                        synopsisEl.innerText = currentSlot.description || ch.description;
-                    }
-                    if (timeslotEl && currentSlot) {
-                        timeslotEl.innerText = currentSlot.timeSlot || ch.timeSlot;
-                    }
-                    if (ratingEl && currentSlot) {
-                        ratingEl.innerText = currentSlot.rating || ch.rating || 'LIVRE';
-                    }
+                    this.updateEPGSelection();
                 }
             }
         } catch (e) {
-            // Ignore if offline
+            // Silencioso se offline
         }
     }
 
@@ -935,19 +1030,31 @@ class RetroTVController {
                 this.guideSelectedChannelIndex = Math.min(this.channels.length - 1, this.guideSelectedChannelIndex + delta);
             }
         } else {
-            // Single step up / down
+            // Passo único
             this.guideSelectedChannelIndex += delta;
             if (this.guideSelectedChannelIndex < 0) this.guideSelectedChannelIndex = this.channels.length - 1;
             if (this.guideSelectedChannelIndex >= this.channels.length) this.guideSelectedChannelIndex = 0;
         }
+
+        const row = document.getElementById(`epg-row-${this.guideSelectedChannelIndex}`);
+        const blocks = row ? row.querySelectorAll('.epg-program-block') : [];
+        const maxSlot = Math.max(0, blocks.length - 1);
+        if (this.guideSelectedSlotIndex > maxSlot) {
+            this.guideSelectedSlotIndex = maxSlot;
+        }
+
         this.updateEPGSelection();
     }
 
     guideMoveHorizontal(delta) {
         window.retroAudio.playBeep('nav');
+        const row = document.getElementById(`epg-row-${this.guideSelectedChannelIndex}`);
+        const blocks = row ? row.querySelectorAll('.epg-program-block') : [];
+        const maxSlot = Math.max(0, blocks.length - 1);
+
         this.guideSelectedSlotIndex += delta;
         if (this.guideSelectedSlotIndex < 0) this.guideSelectedSlotIndex = 0;
-        if (this.guideSelectedSlotIndex > 2) this.guideSelectedSlotIndex = 2;
+        if (this.guideSelectedSlotIndex > maxSlot) this.guideSelectedSlotIndex = maxSlot;
         this.updateEPGSelection();
     }
 
