@@ -104,7 +104,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log('===========================================================');
-  console.log(' 📺 AQUANET TV - FRONTEND INICIADO COM SUCESSO!');
+  console.log(' AQUANET TV - FRONTEND INICIADO COM SUCESSO!');
   console.log(` Endereço: http://localhost:${PORT}`);
   console.log(` API IPTV esperada em: http://localhost:1414`);
   console.log('===========================================================');

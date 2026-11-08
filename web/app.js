@@ -760,8 +760,8 @@ class RetroTVController {
             const chCell = document.createElement('div');
             chCell.className = 'epg-channel-cell';
             const logoHtml = ch.logo
-                ? `<div class="epg-cell-logo-slot"><img src="${ch.logo}" alt="" class="epg-cell-logo" onerror="this.parentElement.innerHTML='<span class=\\'epg-cell-logo-fallback\\'>📺</span>'"></div>`
-                : `<div class="epg-cell-logo-slot"><span class="epg-cell-logo-fallback">📺</span></div>`;
+                ? `<div class="epg-cell-logo-slot"><img src="${ch.logo}" alt="" class="epg-cell-logo" onerror="this.parentElement.innerHTML='<img src=\\'icons/tv.png\\' alt=\\'\\' class=\\'epg-cell-logo-fallback\\'>'"></div>`
+                : `<div class="epg-cell-logo-slot"><img src="icons/tv.png" alt="" class="epg-cell-logo-fallback"></div>`;
 
             chCell.innerHTML = `
                 <span class="cell-ch-num">${ch.id}</span>
@@ -828,18 +828,12 @@ class RetroTVController {
                     block.style.flex = `${pct} 0 auto`;
                     block.style.minWidth = '70px';
 
-                    const hasOverflowLeft = pStartMs < windowStartMs;
-                    const hasOverflowRight = pStopMs > windowEndMs;
-                    const prefix = hasOverflowLeft ? '< ' : '';
-                    const suffix = hasOverflowRight ? ' >' : '';
-
                     const timeStr = item.timeBadge || item.time || (window.formatTimeBadge ? window.formatTimeBadge(item.start) : '');
                     const timeTag = timeStr && timeStr !== '--:--' ? `<span class="epg-block-time">${timeStr}</span>` : '';
 
                     block.innerHTML = `
                         ${timeTag}
-                        <span class="epg-block-title" title="${item.title}">${prefix}${item.title}</span>
-                        ${suffix ? `<span class="epg-program-arrow">${suffix}</span>` : ''}
+                        <span class="epg-block-title" title="${item.title}">${item.title}</span>
                     `;
 
                     block.addEventListener('click', () => {
@@ -976,18 +970,12 @@ class RetroTVController {
                                 block.style.flex = `${pct} 0 auto`;
                                 block.style.minWidth = '70px';
 
-                                const hasOverflowLeft = pStartMs < windowStartMs;
-                                const hasOverflowRight = pStopMs > windowEndMs;
-                                const prefix = hasOverflowLeft ? '< ' : '';
-                                const suffix = hasOverflowRight ? ' >' : '';
-
-                                const timeStr = item.timeBadge || item.time || '';
+                                const timeStr = item.timeBadge || item.time || (window.formatTimeBadge ? window.formatTimeBadge(item.start) : '');
                                 const timeTag = timeStr && timeStr !== '--:--' ? `<span class="epg-block-time">${timeStr}</span>` : '';
 
                                 block.innerHTML = `
                                     ${timeTag}
-                                    <span class="epg-block-title" title="${item.title}">${prefix}${item.title}</span>
-                                    ${suffix ? `<span class="epg-program-arrow">${suffix}</span>` : ''}
+                                    <span class="epg-block-title" title="${item.title}">${item.title}</span>
                                 `;
 
                                 block.addEventListener('click', () => {
@@ -1078,8 +1066,8 @@ class RetroTVController {
             item.id = `mini-guide-item-${idx}`;
 
             const logoHtml = ch.logo
-                ? `<div class="mini-guide-logo-slot"><img src="${ch.logo}" alt="" class="mini-guide-logo" onerror="this.parentElement.innerHTML='<span class=\\'mini-guide-logo-fallback\\'>📺</span>'"></div>`
-                : `<div class="mini-guide-logo-slot"><span class="mini-guide-logo-fallback">📺</span></div>`;
+                ? `<div class="mini-guide-logo-slot"><img src="${ch.logo}" alt="" class="mini-guide-logo" onerror="this.parentElement.innerHTML='<img src=\\'icons/tv.png\\' alt=\\'\\' class=\\'mini-guide-logo-fallback\\'>'"></div>`
+                : `<div class="mini-guide-logo-slot"><img src="icons/tv.png" alt="" class="mini-guide-logo-fallback"></div>`;
 
             item.innerHTML = `
                 <div class="mini-guide-ch-left">

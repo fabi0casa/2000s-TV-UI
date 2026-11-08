@@ -714,11 +714,26 @@ html, body {
     object-fit: contain;
 }
 
-.epg-cell-logo-fallback,
+.epg-cell-logo-fallback {
+    max-width: 20px;
+    max-height: 20px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    opacity: 0.9;
+    display: block;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
 .mini-guide-logo-fallback {
-    font-size: 13px;
-    opacity: 0.65;
-    line-height: 1;
+    max-width: 18px;
+    max-height: 18px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    opacity: 0.9;
+    display: block;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 }
 
 .epg-channel-cell .cell-ch-name {
@@ -751,13 +766,12 @@ html, body {
 
 .epg-program-block {
     height: 100%;
-    padding: 0 12px;
+    padding: 16px 10px 4px 10px;
     display: flex;
     align-items: center;
-    gap: 8px;
     border-right: 2px solid rgba(80, 165, 255, 0.45);
     color: #cfdfee;
-    font-size: 15px;
+    font-size: 14.5px;
     font-weight: 600;
     white-space: nowrap;
     overflow: hidden;
@@ -776,7 +790,7 @@ html, body {
     font-style: italic;
     font-size: 15px;
     font-weight: 500;
-    padding-left: 18px;
+    padding: 0 12px 0 18px;
     justify-content: flex-start;
 }
 
@@ -788,19 +802,21 @@ html, body {
 }
 
 .epg-block-time {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 7px;
-    background: rgba(3, 26, 58, 0.7);
-    border: 1px solid rgba(110, 180, 255, 0.35);
-    border-radius: 4px;
+    position: absolute;
+    top: 3px;
+    left: 8px;
     font-family: var(--osd-num-font);
-    font-size: 13px;
-    font-weight: 700;
-    color: #82cbff;
-    letter-spacing: 0.5px;
-    flex-shrink: 0;
-    line-height: 1.1;
+    font-size: 11px;
+    font-weight: 600;
+    color: #ffffff;
+    opacity: 0.9;
+    letter-spacing: 0.3px;
+    line-height: 1;
+    pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
+    background: none;
+    border: none;
+    padding: 0;
 }
 
 .epg-block-title {
@@ -831,10 +847,9 @@ html, body {
 }
 
 .epg-program-block.selected .epg-block-time {
-    background: rgba(45, 18, 0, 0.5);
-    border-color: rgba(255, 255, 255, 0.6);
-    color: #ffffff;
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+    color: #ffffff !important;
+    opacity: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 .epg-program-block.selected .epg-block-title {
@@ -843,6 +858,9 @@ html, body {
 
 .epg-program-block.selected .epg-no-info-text {
     color: #1a0800 !important;
+    font-style: normal;
+    font-weight: 700;
+}
     font-style: normal;
     font-weight: 700;
 }
@@ -1964,13 +1982,19 @@ html, body {
 
     .epg-program-block {
         font-size: 13px;
-        padding: 0 8px;
-        gap: 6px;
+        padding: 13px 6px 3px 6px;
     }
 
     .epg-block-time {
-        font-size: 11px;
-        padding: 1px 4px;
+        font-size: 10px;
+        top: 2px;
+        left: 6px;
+    }
+
+    .epg-cell-logo-fallback,
+    .mini-guide-logo-fallback {
+        max-width: 16px;
+        max-height: 16px;
     }
 
     .mini-guide-overlay {

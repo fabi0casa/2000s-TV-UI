@@ -42,20 +42,17 @@ function formatTime12(date) {
 }
 
 /**
- * Helper: Formata horários para tags compactas de grade EPG (ex: 11pm, 11pm30, 18pm/6pm, 2am)
+ * Helper: Formata horários para tags compactas de grade EPG (ex: 11:30am, 1:00pm, 2:45am)
  */
 function formatTimeBadge(date) {
     if (!date) return '--:--';
     const d = (typeof date === 'string') ? new Date(date) : date;
     if (isNaN(d.getTime())) return '--:--';
     const h = d.getHours();
-    const m = d.getMinutes();
+    const m = d.getMinutes().toString().padStart(2, '0');
     const ampm = h >= 12 ? 'pm' : 'am';
     const h12 = h % 12 || 12;
-    if (m === 0) {
-        return `${h12}${ampm}`;
-    }
-    return `${h12}${ampm}${m.toString().padStart(2, '0')}`;
+    return `${h12}:${m}${ampm}`;
 }
 
 function formatTimeSlot(start, stop) {
@@ -93,7 +90,7 @@ function cleanChannelName(rawName) {
     if (!rawName) return 'CANAL';
     return decodeHtmlEntities(rawName)
         .replace(/CANAIS:\s*/gi, '')
-        .replace(/[✨⚽🔴🟢]/g, '')
+        .replace(/[✨⚽🔴🟢📺]/g, '')
         .trim();
 }
 
