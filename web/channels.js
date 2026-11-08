@@ -101,6 +101,7 @@ function transformApiChannel(rawCh, index) {
     const channelNum = index; // 1, 2, 3, ... 300
     const channelIdStr = String(channelNum).padStart(3, '0'); // "001", "002", ... "300"
     const cleanName = cleanChannelName(rawCh.name);
+    const isUS = (rawCh.country === 'US');
 
     const hasEpgFlag = Boolean(rawCh.epg && rawCh.epg.hasEpg);
     const rawPrograms = (hasEpgFlag && Array.isArray(rawCh.epg.programs)) ? rawCh.epg.programs : [];
@@ -112,10 +113,10 @@ function transformApiChannel(rawCh, index) {
             time: formatTime12(p.start),
             timeBadge: formatTimeBadge(p.start),
             timeSlot: formatTimeSlot(p.start, p.stop),
-            title: p.title || `${cleanName} - Atração`,
+            title: p.title || `${cleanName} - ${isUS ? 'Live' : 'Atração'}`,
             description: p.description || '',
-            category: p.category || rawCh.category || '',
-            rating: "LIVRE",
+            category: p.category || rawCh.category || (isUS ? 'General' : 'Geral'),
+            rating: isUS ? "TV-G" : "LIVRE",
             current: Boolean(p.isLive),
             start: typeof p.start === 'string' ? p.start : new Date(p.start).toISOString(),
             stop: typeof p.stop === 'string' ? p.stop : new Date(p.stop).toISOString()
@@ -125,9 +126,9 @@ function transformApiChannel(rawCh, index) {
             time: formatTime12(rawCh.epg.now.start),
             timeBadge: formatTimeBadge(rawCh.epg.now.start),
             timeSlot: formatTimeSlot(rawCh.epg.now.start, rawCh.epg.now.stop),
-            title: rawCh.epg.now.title || `${cleanName} - Ao Vivo`,
+            title: rawCh.epg.now.title || `${cleanName} - ${isUS ? 'Live' : 'Ao Vivo'}`,
             description: rawCh.epg.now.description || '',
-            rating: "LIVRE",
+            rating: isUS ? "TV-G" : "LIVRE",
             current: true,
             start: typeof rawCh.epg.now.start === 'string' ? rawCh.epg.now.start : new Date(rawCh.epg.now.start).toISOString(),
             stop: typeof rawCh.epg.now.stop === 'string' ? rawCh.epg.now.stop : new Date(rawCh.epg.now.stop).toISOString()
@@ -137,9 +138,9 @@ function transformApiChannel(rawCh, index) {
                 time: formatTime12(rawCh.epg.next.start),
                 timeBadge: formatTimeBadge(rawCh.epg.next.start),
                 timeSlot: formatTimeSlot(rawCh.epg.next.start, rawCh.epg.next.stop),
-                title: rawCh.epg.next.title || `Próxima Atração`,
+                title: rawCh.epg.next.title || (isUS ? `Upcoming Program` : `Próxima Atração`),
                 description: rawCh.epg.next.description || '',
-                rating: "LIVRE",
+                rating: isUS ? "TV-G" : "LIVRE",
                 current: false,
                 start: typeof rawCh.epg.next.start === 'string' ? rawCh.epg.next.start : new Date(rawCh.epg.next.start).toISOString(),
                 stop: typeof rawCh.epg.next.stop === 'string' ? rawCh.epg.next.stop : new Date(rawCh.epg.next.stop).toISOString()
@@ -151,10 +152,12 @@ function transformApiChannel(rawCh, index) {
     // A grade permanece vazia ([]) e a interface exibe: "sem informações de programação..."
     const hasRealEpg = schedule.length > 0;
     const currentLiveProg = schedule.find(p => p.current) || schedule[0];
-    const progTitle = currentLiveProg ? currentLiveProg.title : `${cleanName} - Ao Vivo`;
+    const progTitle = currentLiveProg ? currentLiveProg.title : `${cleanName} - ${isUS ? 'Live' : 'Ao Vivo'}`;
     const progDesc = currentLiveProg
-        ? (currentLiveProg.description || `Transmissão ao vivo do canal ${cleanName}.`)
-        : `Transmissão ao vivo do canal ${cleanName}. Programação contínua da emissora. Categoria: ${rawCh.category || 'Geral'}.`;
+        ? (currentLiveProg.description || (isUS ? `Live broadcast from ${cleanName}.` : `Transmissão ao vivo do canal ${cleanName}.`))
+        : (isUS
+            ? `Live television broadcast from ${cleanName}. Continuous transmission. Category: ${rawCh.category || 'General'}.`
+            : `Transmissão ao vivo do canal ${cleanName}. Programação contínua da emissora. Categoria: ${rawCh.category || 'Geral'}.`);
 
     const timeSlotStr = currentLiveProg ? currentLiveProg.timeSlot : formatTimeSlot(null, null);
     const shortCode = cleanName.toUpperCase().slice(0, 14);
@@ -167,11 +170,12 @@ function transformApiChannel(rawCh, index) {
         name: cleanName,
         title: progTitle,
         timeSlot: timeSlotStr,
-        language: "Português",
-        rating: "LIVRE",
-        category: rawCh.category || "Geral",
+        language: isUS ? "English" : "Português",
+        rating: isUS ? "TV-G" : "LIVRE",
+        category: rawCh.category || (isUS ? "General" : "Geral"),
         description: progDesc,
         logo: rawCh.logo || "",
+        country: rawCh.country || "BR",
         streamUrl: rawCh.streamUrl,
         liveUrl: rawCh.liveUrl || `http://localhost:1414/live/${rawCh.id}.m3u8`,
         proxyUrl: rawCh.proxyUrl || `http://localhost:1414/proxy?url=${encodeURIComponent(rawCh.streamUrl)}`,

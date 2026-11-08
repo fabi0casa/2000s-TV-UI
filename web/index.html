@@ -150,7 +150,7 @@
 
                 <!-- Bottom Row: Favorites & Color Action Hints -->
                 <div class="banner-bottom-row">
-                    <div class="banner-favorites-tag" id="banner-favorites-tag">Favorites List: Channels</div>
+                    <div class="banner-favorites-tag" id="banner-favorites-tag">Playlist: Canais Brasileiros</div>
                     <div class="banner-remote-hints">
                         <div class="remote-hint-item" id="hint-red-signal">
                             <span class="orb-dot orb-red"></span>
@@ -232,7 +232,7 @@
 
                 <!-- EPG Bottom Bar with Colored Navigation Orbs -->
                 <div class="epg-bottom-bar">
-                    <div class="epg-channels-filter">Channels I Get</div>
+                    <div class="epg-channels-filter" id="epg-channels-filter">Playlist: Canais Brasileiros</div>
                     <div class="epg-bottom-hints">
                         <div class="remote-hint-item" id="epg-hint-red" title="Pular canais para cima (Page Up)">
                             <span class="orb-dot orb-red"></span>
@@ -242,9 +242,9 @@
                             <span class="orb-dot orb-green"></span>
                             <span>Pág ▼ (+4)</span>
                         </div>
-                        <div class="remote-hint-item" id="epg-hint-yellow" title="Opções de TV e Guia">
+                        <div class="remote-hint-item" id="epg-hint-yellow" title="Alternar Playlist (Brasil / EUA)">
                             <span class="orb-dot orb-yellow"></span>
-                            <span>Guide Options</span>
+                            <span id="epg-hint-yellow-text">Alternar Playlist</span>
                         </div>
                         <div class="remote-hint-item" id="epg-hint-blue" title="Fechar Guia e voltar para a TV">
                             <span class="orb-dot orb-blue"></span>
@@ -350,7 +350,7 @@
         <div class="remote-color-row">
             <button class="btn-remote-color btn-color-red" id="rc-red" title="Vermelho: Mutar SFX / No Guia: Pág ▲ (-4)"></button>
             <button class="btn-remote-color btn-color-green" id="rc-green" title="Verde: Alternar Tubo CRT / No Guia: Pág ▼ (+4)"></button>
-            <button class="btn-remote-color btn-color-yellow" id="rc-yellow" title="Amarelo: Opções de TV (Sintonizar YouTube, IPTV, MP4)"></button>
+            <button class="btn-remote-color btn-color-yellow" id="rc-yellow" title="Amarelo: Opções de TV / No Guia: Alternar Playlist"></button>
             <button class="btn-remote-color btn-color-blue" id="rc-blue" title="Azul: Canal Aleatório / No Guia: Fechar (Exit)"></button>
         </div>
 
@@ -398,6 +398,57 @@
         <div class="modal-actions">
             <button class="btn-modal btn-modal-cancel" id="btn-cancel-stream">Cancelar</button>
             <button class="btn-modal btn-modal-load" id="btn-load-stream">Sintonizar na TV</button>
+        </div>
+    </div>
+
+    <!-- Playlist Selector Modal (Frutiger Aero 2000s Satellite Menu) -->
+    <div id="modal-playlist" class="modal-playlist-selector" role="dialog" aria-modal="true" aria-labelledby="modal-playlist-title">
+        <div class="modal-header">
+            <span class="modal-header-badge">SATELLITE LINEUP</span>
+            <h3 id="modal-playlist-title" style="color: #64b5f6; font-size: 20px; margin: 0;">Alternar Playlist de Canais</h3>
+        </div>
+        <p style="font-size: 13.5px; color: #bad7f5; margin: 0; line-height: 1.45;">
+            Selecione a lista de transmissão via satélite para exibir no Guia de Programação e na TV:
+        </p>
+
+        <div class="playlist-options-list">
+            <!-- Opção Brasil -->
+            <div class="playlist-card active" data-playlist="br" id="playlist-opt-br" tabindex="0">
+                <div class="playlist-flag-bubble">
+                    <span class="playlist-flag-icon">🇧🇷</span>
+                </div>
+                <div class="playlist-card-content">
+                    <div class="playlist-card-title-row">
+                        <span class="playlist-title">Canais Brasileiros</span>
+                        <span class="playlist-active-badge">ATIVO</span>
+                    </div>
+                    <span class="playlist-desc">Transmissão ao vivo do Brasil • IPTV & EPG Nacional</span>
+                </div>
+            </div>
+
+            <!-- Opção EUA -->
+            <div class="playlist-card" data-playlist="us" id="playlist-opt-us" tabindex="0">
+                <div class="playlist-flag-bubble">
+                    <span class="playlist-flag-icon">🇺🇸</span>
+                </div>
+                <div class="playlist-card-content">
+                    <div class="playlist-card-title-row">
+                        <span class="playlist-title">American Channels</span>
+                        <span class="playlist-active-badge">SELECIONAR</span>
+                    </div>
+                    <span class="playlist-desc">United States Live TV • News, Entertainment & Fast Streams</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="playlist-modal-quick-hint">
+            <span class="orb-dot orb-yellow"></span>
+            <span>Dica: Pressione o botão <strong>Amarelo</strong> ou use as setas ▲/▼ + <strong>OK</strong> para alternar.</span>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-modal btn-modal-cancel" id="btn-cancel-playlist">Cancelar</button>
+            <button class="btn-modal btn-modal-load" id="btn-confirm-playlist">Sintonizar Playlist</button>
         </div>
     </div>
 

@@ -59,6 +59,21 @@ class RetroTVController {
         this.osdMediaIcon = document.getElementById('osd-media-icon');
         this.osdMediaText = document.getElementById('osd-media-text');
 
+        // Playlist Lineup State ('br' | 'us')
+        this.currentPlaylist = 'br';
+        this.playlistCache = {};
+        this.isPlaylistModalOpen = false;
+        this.modalSelectedPlaylist = 'us';
+
+        // Playlist Modal Elements
+        this.modalPlaylist = document.getElementById('modal-playlist');
+        this.cardPlaylistBr = document.getElementById('playlist-opt-br');
+        this.cardPlaylistUs = document.getElementById('playlist-opt-us');
+        this.btnCancelPlaylist = document.getElementById('btn-cancel-playlist');
+        this.btnConfirmPlaylist = document.getElementById('btn-confirm-playlist');
+        this.epgChannelsFilter = document.getElementById('epg-channels-filter');
+        this.epgHintYellowText = document.getElementById('epg-hint-yellow-text');
+
         // Media & YouTube Player State
         this.currentMediaMode = 'canvas'; // 'canvas' | 'video' | 'youtube'
         this.ytPlayer = null;
@@ -541,10 +556,11 @@ class RetroTVController {
         }
 
         if (elFavTag) {
+            const playlistTitle = this.getPlaylistDisplayName();
             if (index !== this.currentChannelIndex) {
-                elFavTag.innerHTML = `<span>Favorites List: Channels</span> <span class="banner-tune-hint">• Pressione OK para assistir</span>`;
+                elFavTag.innerHTML = `<span>${playlistTitle}</span> <span class="banner-tune-hint">• Pressione OK para assistir</span>`;
             } else {
-                elFavTag.innerHTML = `<span>Favorites List: Channels</span>`;
+                elFavTag.innerHTML = `<span>${playlistTitle}</span>`;
             }
         }
     }
@@ -574,7 +590,9 @@ class RetroTVController {
      * Handle Up navigation (D-pad & keyboard arrow)
      */
     handleUpPress() {
-        if (this.isGuideOpen) {
+        if (this.isPlaylistModalOpen) {
+            this.movePlaylistModalSelection(-1);
+        } else if (this.isGuideOpen) {
             this.guideMoveVertical(-1);
         } else if (this.isMiniGuideOpen) {
             this.channelDown(); // Visualmente sobe na lista do Mini Guide (índice anterior)
@@ -587,7 +605,9 @@ class RetroTVController {
      * Handle Down navigation (D-pad & keyboard arrow)
      */
     handleDownPress() {
-        if (this.isGuideOpen) {
+        if (this.isPlaylistModalOpen) {
+            this.movePlaylistModalSelection(1);
+        } else if (this.isGuideOpen) {
             this.guideMoveVertical(1);
         } else if (this.isMiniGuideOpen) {
             this.channelUp(); // Visualmente desce na lista do Mini Guide (próximo índice)
@@ -637,6 +657,11 @@ class RetroTVController {
     handleOkPress() {
         if (!this.isPowerOn) return;
 
+        if (this.isPlaylistModalOpen) {
+            this.confirmPlaylistSelection();
+            return;
+        }
+
         // Apenas na implementação do YouTube, o OK pausa/reproduz
         if (this.currentMediaMode === 'youtube') {
             if (this.isBannerVisible && this.bannerBrowsingIndex !== this.currentChannelIndex) {
@@ -680,6 +705,10 @@ class RetroTVController {
         this.guideSelectedSlotIndex = 0;
         this.updateEPGSelection();
 
+        if (this.epgChannelsFilter) {
+            this.epgChannelsFilter.innerText = this.getPlaylistDisplayName();
+        }
+
         this.epgGuide.classList.remove('hidden');
         this.isGuideOpen = true;
 
@@ -691,6 +720,9 @@ class RetroTVController {
 
     closeGuide() {
         if (!this.isGuideOpen) return;
+        if (this.isPlaylistModalOpen) {
+            this.closePlaylistModal();
+        }
         if (window.retroAudio) {
             window.retroAudio.playBeep('back');
         }
@@ -1451,6 +1483,8 @@ class RetroTVController {
                     e.preventDefault();
                     if (this.dialDigits.length > 0) {
                         this.confirmDial();
+                    } else if (this.isPlaylistModalOpen) {
+                        this.confirmPlaylistSelection();
                     } else if (this.isGuideOpen) {
                         this.guideSelectCurrent();
                     } else {
@@ -1459,7 +1493,9 @@ class RetroTVController {
                     break;
                 case 'Escape':
                     e.preventDefault();
-                    if (this.modalStream.classList.contains('active')) {
+                    if (this.isPlaylistModalOpen) {
+                        this.closePlaylistModal();
+                    } else if (this.modalStream.classList.contains('active')) {
                         this.modalStream.classList.remove('active');
                     } else if (this.isGuideOpen) {
                         this.closeGuide();
@@ -1524,6 +1560,14 @@ class RetroTVController {
                         this.closeGuide();
                     } else {
                         this.tuneRandomChannel();
+                    }
+                    break;
+                case 'y':
+                case 'Y':
+                    if (this.isGuideOpen) {
+                        this.handleGuideYellowAction();
+                    } else {
+                        this.openCustomStreamModal();
                     }
                     break;
                 case 'PageUp':
@@ -1593,6 +1637,10 @@ class RetroTVController {
         document.getElementById('rc-info').addEventListener('click', () => this.toggleBanner());
         document.getElementById('rc-menu').addEventListener('click', () => this.toggleMiniGuide());
         document.getElementById('rc-exit').addEventListener('click', () => {
+            if (this.isPlaylistModalOpen) {
+                this.closePlaylistModal();
+                return;
+            }
             this.closeGuide();
             this.closeMiniGuide();
             this.hideBanner();
@@ -1613,6 +1661,7 @@ class RetroTVController {
         });
         document.getElementById('rc-ok').addEventListener('click', () => {
             if (this.dialDigits.length > 0) this.confirmDial();
+            else if (this.isPlaylistModalOpen) this.confirmPlaylistSelection();
             else if (this.isGuideOpen) this.guideSelectCurrent();
             else this.handleOkPress();
         });
@@ -1639,7 +1688,11 @@ class RetroTVController {
             }
         });
         document.getElementById('rc-yellow').addEventListener('click', () => {
-            this.openCustomStreamModal();
+            if (this.isGuideOpen) {
+                this.handleGuideYellowAction();
+            } else {
+                this.openCustomStreamModal();
+            }
         });
         document.getElementById('rc-blue').addEventListener('click', () => {
             if (this.isGuideOpen) {
@@ -1824,8 +1877,38 @@ class RetroTVController {
         document.getElementById('epg-hint-green').addEventListener('click', () => {
             this.guideMoveVertical(4);
         });
-        document.getElementById('epg-hint-yellow').addEventListener('click', () => this.openCustomStreamModal());
+        document.getElementById('epg-hint-yellow').addEventListener('click', () => {
+            this.handleGuideYellowAction();
+        });
         document.getElementById('epg-hint-blue').addEventListener('click', () => this.closeGuide());
+
+        // Playlist Modal actions
+        if (this.cardPlaylistBr) {
+            this.cardPlaylistBr.addEventListener('click', () => {
+                this.switchPlaylist('br');
+            });
+            this.cardPlaylistBr.addEventListener('mouseenter', () => {
+                this.setModalSelectedPlaylist('br', false);
+            });
+        }
+        if (this.cardPlaylistUs) {
+            this.cardPlaylistUs.addEventListener('click', () => {
+                this.switchPlaylist('us');
+            });
+            this.cardPlaylistUs.addEventListener('mouseenter', () => {
+                this.setModalSelectedPlaylist('us', false);
+            });
+        }
+        if (this.btnCancelPlaylist) {
+            this.btnCancelPlaylist.addEventListener('click', () => {
+                this.closePlaylistModal();
+            });
+        }
+        if (this.btnConfirmPlaylist) {
+            this.btnConfirmPlaylist.addEventListener('click', () => {
+                this.confirmPlaylistSelection();
+            });
+        }
 
         // Custom Stream Modal actions
         const btnCancel = document.getElementById('btn-cancel-stream');
@@ -1881,6 +1964,166 @@ class RetroTVController {
                 }
             });
         });
+    }
+
+    /**
+     * Retorna o nome da playlist ativa formatado para exibição
+     */
+    getPlaylistDisplayName() {
+        return this.currentPlaylist === 'us' ? 'Playlist: American Channels' : 'Playlist: Canais Brasileiros';
+    }
+
+    /**
+     * Ação do botão amarelo quando acionado DENTRO da aba Guide
+     */
+    handleGuideYellowAction() {
+        if (!this.isPowerOn) return;
+        if (this.isPlaylistModalOpen) {
+            // Se o modal já estiver aberto, alterna a seleção
+            const next = (this.modalSelectedPlaylist === 'br') ? 'us' : 'br';
+            this.setModalSelectedPlaylist(next, true);
+        } else {
+            this.openPlaylistModal();
+        }
+    }
+
+    /**
+     * Abre o modal Frutiger Aero de seleção de Playlist
+     */
+    openPlaylistModal() {
+        if (!this.isPowerOn || !this.modalPlaylist) return;
+        this.isPlaylistModalOpen = true;
+
+        if (window.retroAudio) {
+            window.retroAudio.playBeep('select');
+        }
+
+        // Sugere a outra playlist para facilitar a troca imediata
+        const targetPlaylist = (this.currentPlaylist === 'br') ? 'us' : 'br';
+        this.modalSelectedPlaylist = targetPlaylist;
+
+        this.updatePlaylistModalUI();
+        this.modalPlaylist.classList.add('active');
+    }
+
+    /**
+     * Fecha o modal de seleção de Playlist
+     */
+    closePlaylistModal() {
+        if (!this.isPlaylistModalOpen || !this.modalPlaylist) return;
+        this.isPlaylistModalOpen = false;
+
+        if (window.retroAudio) {
+            window.retroAudio.playBeep('back');
+        }
+
+        this.modalPlaylist.classList.remove('active');
+    }
+
+    /**
+     * Atualiza o estado visual das opções do modal de playlist
+     */
+    updatePlaylistModalUI() {
+        if (this.cardPlaylistBr) {
+            const isBrActive = (this.currentPlaylist === 'br');
+            const isBrFocused = (this.modalSelectedPlaylist === 'br');
+            this.cardPlaylistBr.classList.toggle('active', isBrActive);
+            this.cardPlaylistBr.classList.toggle('focused', isBrFocused);
+            const badge = this.cardPlaylistBr.querySelector('.playlist-active-badge');
+            if (badge) {
+                badge.innerText = isBrActive ? 'ATIVO' : (isBrFocused ? 'SELECIONAR' : 'TROCAR');
+            }
+        }
+
+        if (this.cardPlaylistUs) {
+            const isUsActive = (this.currentPlaylist === 'us');
+            const isUsFocused = (this.modalSelectedPlaylist === 'us');
+            this.cardPlaylistUs.classList.toggle('active', isUsActive);
+            this.cardPlaylistUs.classList.toggle('focused', isUsFocused);
+            const badge = this.cardPlaylistUs.querySelector('.playlist-active-badge');
+            if (badge) {
+                badge.innerText = isUsActive ? 'ATIVO' : (isUsFocused ? 'SELECIONAR' : 'TROCAR');
+            }
+        }
+    }
+
+    /**
+     * Altera o item focado no modal de playlist
+     */
+    setModalSelectedPlaylist(playlistId, playSound = true) {
+        if (playlistId !== 'br' && playlistId !== 'us') return;
+        this.modalSelectedPlaylist = playlistId;
+        this.updatePlaylistModalUI();
+        if (playSound && window.retroAudio) {
+            window.retroAudio.playBeep('nav');
+        }
+    }
+
+    /**
+     * Navegação com D-pad / teclado dentro do modal de playlist
+     */
+    movePlaylistModalSelection(delta) {
+        const next = (this.modalSelectedPlaylist === 'br') ? 'us' : 'br';
+        this.setModalSelectedPlaylist(next, true);
+    }
+
+    /**
+     * Confirmação da seleção do modal de playlist (botão OK / Enter)
+     */
+    confirmPlaylistSelection() {
+        if (!this.modalSelectedPlaylist) return;
+        this.switchPlaylist(this.modalSelectedPlaylist);
+    }
+
+    /**
+     * Troca a playlist de canais (Brasil ou EUA) e atualiza todo o sistema
+     */
+    async switchPlaylist(newPlaylist) {
+        if (newPlaylist !== 'br' && newPlaylist !== 'us') return;
+
+        // Se já está na mesma playlist e tem canais carregados, apenas fecha
+        if (this.currentPlaylist === newPlaylist && this.channels.length > 1) {
+            this.closePlaylistModal();
+            return;
+        }
+
+        this.currentPlaylist = newPlaylist;
+        this.closePlaylistModal();
+
+        if (window.retroAudio) {
+            window.retroAudio.playBeep('select');
+        }
+
+        const displayName = this.getPlaylistDisplayName();
+
+        // OSD Feedback
+        this.showMediaOSD(newPlaylist === 'us' ? '🇺🇸' : '🇧🇷', displayName.toUpperCase());
+
+        // Atualiza tag no Guia EPG
+        if (this.epgChannelsFilter) {
+            this.epgChannelsFilter.innerText = displayName;
+        }
+
+        // Troca instantânea se tiver em cache
+        if (this.playlistCache && this.playlistCache[newPlaylist]) {
+            const staticCh = window.CHANNEL_000_STATIC || this.channels[0];
+            this.channels = [staticCh, ...this.playlistCache[newPlaylist]];
+            window.CHANNELS_DATA = this.channels;
+            this.buildEPGGrid();
+            this.buildMiniGuide();
+            this.tuneChannelByIndex(1, true);
+            this.updateBannerForChannel(this.currentChannelIndex);
+            if (this.isGuideOpen) {
+                this.guideSelectedChannelIndex = 1;
+                this.updateEPGSelection();
+            }
+            this.showBanner(4500);
+        }
+
+        // Sincroniza via API
+        await this.syncWithApi(newPlaylist, true);
+        this.updateBannerForChannel(this.currentChannelIndex);
+        this.showBanner(4500);
     }
 
     /**
@@ -2364,17 +2607,26 @@ class RetroTVController {
      * Sincronização em tempo real com a API de IPTV na porta 1414
      * Todos os canais de transmissão são servidos EXCLUSIVAMENTE via API.
      */
-    async syncWithApi() {
+    async syncWithApi(playlistOverride = null, forceTuneFirst = false) {
+        if (playlistOverride) {
+            this.currentPlaylist = playlistOverride;
+        }
+        const country = this.currentPlaylist; // 'br' or 'us'
+        const endpoint = (country === 'us') ? '/api/channels/us' : '/api/channels/br';
+
         try {
-            const res = await fetch(`${this.apiBaseUrl}/api/channels/br`);
+            const res = await fetch(`${this.apiBaseUrl}${endpoint}`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             if (data && Array.isArray(data.channels) && data.channels.length > 0) {
-                console.log(`[API] ${data.channels.length} canais brasileiros carregados com sucesso da API!`);
+                console.log(`[API] ${data.channels.length} canais (${country.toUpperCase()}) carregados com sucesso da API!`);
                 const staticCh = window.CHANNEL_000_STATIC || this.channels[0];
                 const transformed = data.channels.map((ch, idx) => {
                     return window.transformApiChannel ? window.transformApiChannel(ch, idx + 1) : ch;
                 });
+
+                if (!this.playlistCache) this.playlistCache = {};
+                this.playlistCache[country] = transformed;
 
                 const wasOnStatic = (this.currentChannelIndex === 0);
                 this.channels = [staticCh, ...transformed];
@@ -2384,14 +2636,26 @@ class RetroTVController {
                 this.buildEPGGrid();
                 this.buildMiniGuide();
 
-                // Se estava no canal 000 aguardando os canais da API, sintoniza o primeiro canal
-                if (wasOnStatic && this.channels.length > 1) {
-                    this.tuneChannelByIndex(1, false);
+                // Atualiza tag da playlist no Guia EPG
+                if (this.epgChannelsFilter) {
+                    this.epgChannelsFilter.innerText = this.getPlaylistDisplayName();
+                }
+
+                // Sintoniza ou atualiza
+                if (forceTuneFirst || (wasOnStatic && this.channels.length > 1)) {
+                    this.tuneChannelByIndex(1, forceTuneFirst);
                 } else {
+                    if (this.currentChannelIndex >= this.channels.length) {
+                        this.currentChannelIndex = 1;
+                    }
                     this.updateBannerForChannel(this.currentChannelIndex);
                 }
 
                 if (this.isGuideOpen) {
+                    this.guideSelectedChannelIndex = Math.min(this.guideSelectedChannelIndex, this.channels.length - 1);
+                    if (this.guideSelectedChannelIndex <= 0 && this.channels.length > 1) {
+                        this.guideSelectedChannelIndex = 1;
+                    }
                     this.updateEPGSelection();
                 }
 
@@ -2401,7 +2665,16 @@ class RetroTVController {
                 }
             }
         } catch (err) {
-            console.warn('[API] Conexão com a API na porta 1414 pendente ou offline. Aguardando servidor API:', err.message);
+            console.warn(`[API] Conexão com a API na porta 1414 (${endpoint}) pendente ou offline. Aguardando servidor API:`, err.message);
+            if (this.playlistCache && this.playlistCache[country]) {
+                const staticCh = window.CHANNEL_000_STATIC || this.channels[0];
+                this.channels = [staticCh, ...this.playlistCache[country]];
+                window.CHANNELS_DATA = this.channels;
+                this.buildEPGGrid();
+                this.buildMiniGuide();
+                if (forceTuneFirst) this.tuneChannelByIndex(1, true);
+                else this.updateBannerForChannel(this.currentChannelIndex);
+            }
             if (this._syncRetryTimeout) clearTimeout(this._syncRetryTimeout);
             this._syncRetryTimeout = setTimeout(() => this.syncWithApi(), 3000);
         }

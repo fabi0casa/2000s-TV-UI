@@ -1881,6 +1881,212 @@ html, body {
 }
 
 /* ===================================================================
+   PLAYLIST SELECTOR MODAL (Frutiger Aero 2000s Satellite Dialog)
+   =================================================================== */
+.modal-playlist-selector {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 92%;
+    max-width: 520px;
+    background: linear-gradient(180deg, #184282 0%, #113468 45%, #0a234a 52%, #0e2d5c 100%);
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), inset 0 2px 3px rgba(255, 255, 255, 0.75), inset 0 -2px 3px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    gap: 15px;
+    overflow: hidden;
+}
+
+.modal-playlist-selector::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 45%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.04) 100%);
+    border-radius: 18px 18px 0 0;
+    pointer-events: none;
+}
+
+.modal-playlist-selector.active {
+    display: flex;
+    animation: aeroModalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes aeroModalPop {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -46%) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.playlist-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 2px;
+}
+
+.playlist-card {
+    position: relative;
+    background: linear-gradient(180deg, rgba(20, 56, 110, 0.75) 0%, rgba(8, 26, 56, 0.9) 100%);
+    border: 1.5px solid rgba(140, 195, 255, 0.35);
+    border-radius: 14px;
+    padding: 13px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    outline: none;
+    user-select: none;
+    transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 3px 8px rgba(0, 0, 0, 0.45);
+    overflow: hidden;
+}
+
+.playlist-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 48%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.02) 100%);
+    border-radius: 13px 13px 0 0;
+    pointer-events: none;
+}
+
+.playlist-card:hover,
+.playlist-card.focused {
+    border-color: #00d2ff;
+    background: linear-gradient(180deg, rgba(32, 105, 192, 0.85) 0%, rgba(14, 48, 100, 0.95) 100%);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.65), 0 0 20px rgba(0, 210, 255, 0.55), 0 4px 12px rgba(0, 0, 0, 0.6);
+    transform: translateY(-2px);
+}
+
+.playlist-card.active {
+    border-color: #4ade80;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 0 16px rgba(74, 222, 128, 0.45), 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+.playlist-card.active.focused,
+.playlist-card.active:hover {
+    border-color: #7efc86;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.75), 0 0 22px rgba(74, 222, 128, 0.7), 0 4px 14px rgba(0, 0, 0, 0.6);
+    transform: translateY(-2px);
+}
+
+.playlist-flag-bubble {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff 0%, #cae3f7 40%, #5b8dbd 100%);
+    border: 1.5px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 2px 3px rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.playlist-flag-icon {
+    font-size: 24px;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+.playlist-card-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    gap: 3px;
+}
+
+.playlist-card-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.playlist-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #ffffff;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+.playlist-active-badge {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 3px 9px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    transition: all 0.2s ease;
+}
+
+.playlist-card.active .playlist-active-badge {
+    background: linear-gradient(180deg, #5eead4 0%, #14b8a6 50%, #0f766e 100%);
+    color: #032b26;
+    border: 1px solid #99f6e4;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 10px rgba(45, 212, 191, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+.playlist-card:not(.active) .playlist-active-badge {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
+    color: #aed1f5;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+.playlist-card.focused:not(.active) .playlist-active-badge {
+    background: linear-gradient(180deg, #ffd752 0%, #f5a623 50%, #b45309 100%);
+    color: #2e1100;
+    border: 1px solid #fef08a;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 10px rgba(245, 166, 35, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+.playlist-desc {
+    font-size: 12px;
+    color: #bad7f5;
+    line-height: 1.35;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.playlist-modal-quick-hint {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(180deg, rgba(8, 26, 56, 0.65) 0%, rgba(4, 14, 32, 0.75) 100%);
+    padding: 9px 12px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4);
+    font-size: 12px;
+    color: #c9e1fa;
+}
+
+.playlist-modal-quick-hint strong {
+    color: #ffde59;
+}
+
+/* ===================================================================
    RESPONSIVE DESIGN (PC & MOBILE)
    =================================================================== */
 @media (max-width: 900px) {
