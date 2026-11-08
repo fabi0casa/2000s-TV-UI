@@ -231,6 +231,9 @@ class SyncManager {
    * Retorna os canais com cálculo dinâmico em tempo real de o que está passando AGORA
    */
   getChannelsDynamic(atDate = new Date()) {
+    if (!this.cachedData) {
+      this.loadCachedData();
+    }
     if (!this.cachedData) return null;
 
     const channels = this.cachedData.channels.map(channel => {
@@ -277,6 +280,9 @@ class SyncManager {
    * Retorna a grade completa de um canal específico para hoje e próximas horas
    */
   getChannelEpg(channelIdOrSlug, atDate = new Date()) {
+    if (!this.cachedData || !this.epgDatabase) {
+      this.loadCachedData();
+    }
     if (!this.cachedData || !this.epgDatabase) return null;
 
     // Procura o canal pelo slug (ex: br-band) ou tvgId

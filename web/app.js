@@ -88,7 +88,7 @@ class RetroTVController {
         this.init();
     }
 
-    init() {
+    async init() {
         // Build initial EPG Grid & Mini Guide
         this.buildEPGGrid();
         this.buildMiniGuide();
@@ -97,10 +97,6 @@ class RetroTVController {
         const initialChannelIdx = this.channels.length > 1 ? 1 : 0;
         this.tuneChannelByIndex(initialChannelIdx, false);
         this.updateLedState();
-
-        // Connect to API to fetch dynamic real-time channels and EPG
-        this.syncWithApi();
-        setInterval(() => this.refreshEPG(), 60000);
 
         // Bind Events
         this.bindKeyboard();
@@ -127,6 +123,10 @@ class RetroTVController {
 
         // Auto show banner at start
         this.showBanner(6000);
+
+        // Connect to API to fetch dynamic real-time channels and EPG exclusively from @/api
+        await this.syncWithApi();
+        setInterval(() => this.refreshEPG(), 60000);
     }
 
     /**
@@ -2376,6 +2376,7 @@ class RetroTVController {
 
     /**
      * Sincronização em tempo real com a API de IPTV na porta 1414
+     * Todos os canais de transmissão são servidos EXCLUSIVAMENTE via API.
      */
     async syncWithApi() {
         try {
@@ -2389,19 +2390,34 @@ class RetroTVController {
                     return window.transformApiChannel ? window.transformApiChannel(ch, idx + 1) : ch;
                 });
 
+                const wasOnStatic = (this.currentChannelIndex === 0);
                 this.channels = [staticCh, ...transformed];
                 window.CHANNELS_DATA = this.channels;
 
-                // Reconstroi o Guia EPG e o Mini Guia com os canais e EPG em tempo real
+                // Reconstroi o Guia EPG e o Mini Guia com os canais e EPG em tempo real da API
                 this.buildEPGGrid();
                 this.buildMiniGuide();
-                this.updateBannerForChannel(this.currentChannelIndex);
+
+                // Se estava no canal 000 aguardando os canais da API, sintoniza o primeiro canal
+                if (wasOnStatic && this.channels.length > 1) {
+                    this.tuneChannelByIndex(1, false);
+                } else {
+                    this.updateBannerForChannel(this.currentChannelIndex);
+                }
+
                 if (this.isGuideOpen) {
                     this.updateEPGSelection();
                 }
+
+                if (this._syncRetryTimeout) {
+                    clearTimeout(this._syncRetryTimeout);
+                    this._syncRetryTimeout = null;
+                }
             }
         } catch (err) {
-            console.log('[API] Conexão com a API na porta 1414 pendente ou offline. Usando canais locais:', err.message);
+            console.warn('[API] Conexão com a API na porta 1414 pendente ou offline. Aguardando servidor API:', err.message);
+            if (this._syncRetryTimeout) clearTimeout(this._syncRetryTimeout);
+            this._syncRetryTimeout = setTimeout(() => this.syncWithApi(), 3000);
         }
     }
 
