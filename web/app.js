@@ -414,8 +414,6 @@ class RetroTVController {
             this.customVideo.src = streamUrl;
             this.customVideo.play().catch(() => {});
         }
-
-        this.showMediaOSD('▶', `${ch.id} ${ch.name || ch.code}`);
     }
 
     /**
