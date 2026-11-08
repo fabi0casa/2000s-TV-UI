@@ -641,21 +641,38 @@ html, body {
 }
 
 /* Grid Channels & Programs Body */
-.epg-grid-body {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
+.epg-grid-body,
+.mini-guide-list {
     scrollbar-width: thin;
     scrollbar-color: #2672bd #05244c;
 }
 
-.epg-grid-body::-webkit-scrollbar {
+.epg-grid-body {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.epg-grid-body::-webkit-scrollbar,
+.mini-guide-list::-webkit-scrollbar {
     width: 8px;
 }
 
-.epg-grid-body::-webkit-scrollbar-thumb {
+.epg-grid-body::-webkit-scrollbar-track,
+.mini-guide-list::-webkit-scrollbar-track {
+    background: #05244c;
+    border-radius: 4px;
+}
+
+.epg-grid-body::-webkit-scrollbar-thumb,
+.mini-guide-list::-webkit-scrollbar-thumb {
     background: #2672bd;
     border-radius: 4px;
+}
+
+.epg-grid-body::-webkit-scrollbar-thumb:hover,
+.mini-guide-list::-webkit-scrollbar-thumb:hover {
+    background: #3988dc;
 }
 
 /* Single Channel Row */
@@ -943,6 +960,7 @@ html, body {
 .mini-guide-list {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 6px 0;
 }
 
