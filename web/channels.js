@@ -13,7 +13,7 @@ const CHANNEL_000_STATIC = {
     code: "000",
     name: "SEM SINAL / NO SIGNAL",
     title: "Sinal do Satélite Interrompido",
-    timeSlot: "--:-- - --:--",
+    timeSlot: "00:00 - 12:00",
     language: "Português",
     rating: "LIVRE",
     category: "Sem Sinal",
@@ -54,25 +54,30 @@ function formatTimeSlot(start, stop) {
     return `${formatTime12(start)} - ${formatTime12(stop)}`;
 }
 
+function cleanChannelName(rawName) {
+    if (!rawName) return 'CANAL';
+    return rawName
+        .replace(/CANAIS:\s*/gi, '')
+        .replace(/[✨⚽🔴🟢]/g, '')
+        .trim();
+}
+
 /**
  * Transforma um item bruto retornado pela API em objeto do canal frontend
  */
 function transformApiChannel(rawCh, index) {
     const channelNum = index; // 1, 2, 3, ... 300
     const channelIdStr = String(channelNum).padStart(3, '0'); // "001", "002", ... "300"
+    const cleanName = cleanChannelName(rawCh.name);
     const hasEpg = Boolean(rawCh.epg && rawCh.epg.hasEpg && rawCh.epg.now);
 
     const nowProg = hasEpg ? rawCh.epg.now : null;
     const nextProg = (hasEpg && rawCh.epg.next) ? rawCh.epg.next : null;
 
-    const progTitle = (nowProg && nowProg.title) ? nowProg.title : `${rawCh.name} - Ao Vivo`;
+    const progTitle = (nowProg && nowProg.title) ? nowProg.title : `${cleanName} - Ao Vivo`;
     const progDesc = (nowProg && nowProg.description)
         ? nowProg.description
-        : `Transmissão ao vivo do canal ${rawCh.name}. Programação contínua da emissora. Categoria: ${rawCh.category || 'Geral'}.`;
-
-    const timeSlotStr = (nowProg && nowProg.start && nowProg.stop)
-        ? formatTimeSlot(nowProg.start, nowProg.stop)
-        : formatTimeSlot(null, null);
+        : `Transmissão ao vivo do canal ${cleanName}. Programação contínua da emissora. Categoria: ${rawCh.category || 'Geral'}.`;
 
     let schedule = [];
     if (hasEpg && nowProg) {
@@ -82,56 +87,112 @@ function transformApiChannel(rawCh, index) {
             title: nowProg.title,
             description: nowProg.description || progDesc,
             rating: "LIVRE",
-            current: true
+            current: true,
+            start: nowProg.start,
+            stop: nowProg.stop
         });
         if (nextProg && nextProg.title) {
             schedule.push({
                 time: formatTime12(nextProg.start),
                 timeSlot: formatTimeSlot(nextProg.start, nextProg.stop),
                 title: nextProg.title,
-                description: nextProg.description || `Próxima atração no canal ${rawCh.name}.`,
+                description: nextProg.description || `Próxima atração no canal ${cleanName}.`,
                 rating: "LIVRE",
-                current: false
+                current: false,
+                start: nextProg.start,
+                stop: nextProg.stop
             });
         }
     }
 
-    while (schedule.length < 3) {
-        const slotIdx = schedule.length;
-        const fallbackTitles = [
-            `${rawCh.name} - Ao Vivo`,
-            `${rawCh.name} - Programação Sequencial`,
-            `${rawCh.name} - Emissão Regular`
-        ];
+    // Se temos 2 programas do EPG (now e next), calcular o 3º programa sequencial a partir do fim do next
+    if (schedule.length === 2 && nextProg && nextProg.stop) {
+        const p3Start = new Date(nextProg.stop);
+        const p3Stop = new Date(p3Start.getTime() + 60 * 60000);
+        const cat = rawCh.category && rawCh.category !== 'Undefined' && rawCh.category !== 'Geral' ? rawCh.category : 'Edição Regular';
         schedule.push({
-            time: "--:--",
-            timeSlot: formatTimeSlot(null, null),
-            title: fallbackTitles[slotIdx] || `${rawCh.name}`,
-            description: progDesc,
+            time: formatTime12(p3Start),
+            timeSlot: formatTimeSlot(p3Start, p3Stop),
+            title: `${cleanName} - ${cat}`,
+            description: `Programação a seguir no canal ${cleanName}.`,
             rating: "LIVRE",
-            current: slotIdx === 0
+            current: false,
+            start: p3Start.toISOString(),
+            stop: p3Stop.toISOString()
         });
     }
 
-    const shortCode = (rawCh.name || 'CANAL')
-        .toUpperCase()
-        .replace(/CANAIS:\s*/gi, '')
-        .replace(/[✨⚽]/g, '')
-        .trim()
-        .slice(0, 10);
+    // Se o canal não possui EPG oficial, gerar grade própria e única para este canal
+    // com horários dinâmicos e escalonados para que cada canal tenha sua própria grade
+    if (schedule.length === 0) {
+        const now = new Date();
+        const offsetMin = (channelNum * 17) % 45; // deslocamento inicial de cada canal (0 a 44 min)
+        const dur1 = 35 + ((channelNum * 11) % 40); // 35 a 75 min
+        const dur2 = 30 + ((channelNum * 19) % 45); // 30 a 75 min
+        const dur3 = 45 + ((channelNum * 23) % 60); // 45 a 105 min
+
+        const start0 = new Date(now.getTime() - offsetMin * 60000);
+        const stop0 = new Date(start0.getTime() + dur1 * 60000);
+        const start1 = new Date(stop0.getTime());
+        const stop1 = new Date(start1.getTime() + dur2 * 60000);
+        const start2 = new Date(stop1.getTime());
+        const stop2 = new Date(start2.getTime() + dur3 * 60000);
+
+        const category = rawCh.category || 'Variedades';
+        const prog1Title = `${cleanName} - Ao Vivo`;
+        const prog2Title = `${cleanName} - ${category !== 'Undefined' ? category : 'Programação Regular'}`;
+        const prog3Title = `${cleanName} - Edição Noturna`;
+
+        schedule = [
+            {
+                time: formatTime12(start0),
+                timeSlot: formatTimeSlot(start0, stop0),
+                title: prog1Title,
+                description: `Transmissão ao vivo do canal ${cleanName}. Categoria: ${category}.`,
+                rating: "LIVRE",
+                current: true,
+                start: start0.toISOString(),
+                stop: stop0.toISOString()
+            },
+            {
+                time: formatTime12(start1),
+                timeSlot: formatTimeSlot(start1, stop1),
+                title: prog2Title,
+                description: `Próxima atração no canal ${cleanName}.`,
+                rating: "LIVRE",
+                current: false,
+                start: start1.toISOString(),
+                stop: stop1.toISOString()
+            },
+            {
+                time: formatTime12(start2),
+                timeSlot: formatTimeSlot(start2, stop2),
+                title: prog3Title,
+                description: `Programação sequencial da emissora ${cleanName}.`,
+                rating: "LIVRE",
+                current: false,
+                start: start2.toISOString(),
+                stop: stop2.toISOString()
+            }
+        ];
+    }
+
+    const timeSlotStr = schedule[0] ? schedule[0].timeSlot : formatTimeSlot(null, null);
+
+    const shortCode = cleanName.toUpperCase().slice(0, 14);
 
     return {
         id: channelIdStr,
         number: channelNum,
         slug: rawCh.id,
         code: shortCode,
-        name: rawCh.name,
-        title: progTitle,
+        name: cleanName,
+        title: schedule[0] ? schedule[0].title : progTitle,
         timeSlot: timeSlotStr,
         language: "Português",
         rating: "LIVRE",
         category: rawCh.category || "Geral",
-        description: progDesc,
+        description: schedule[0] ? schedule[0].description : progDesc,
         logo: rawCh.logo || "",
         streamUrl: rawCh.streamUrl,
         liveUrl: rawCh.liveUrl || `http://localhost:1414/live/${rawCh.id}.m3u8`,

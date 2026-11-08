@@ -525,7 +525,7 @@ class RetroTVController {
         const elFavTag = document.getElementById('banner-favorites-tag') || document.querySelector('.banner-favorites-tag');
 
         if (elNum) elNum.innerText = ch.id;
-        if (elCode) elCode.innerText = ch.code;
+        if (elCode) elCode.innerText = ch.name || ch.code;
         if (elTitle) elTitle.innerText = ch.title;
         if (elLang) elLang.innerText = ch.language || 'Português';
         if (elTimeslot) elTimeslot.innerText = ch.timeSlot || '';
@@ -714,19 +714,12 @@ class RetroTVController {
         if (!rowsContainer) return;
         rowsContainer.innerHTML = '';
 
-        // Calculate dynamic time headers for the 3 slots based on current half-hour
-        const now = new Date();
-        const baseMin = now.getMinutes() < 30 ? 0 : 30;
-        const slot0Date = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours(), baseMin);
-        const slot1Date = new Date(slot0Date.getTime() + 30 * 60000);
-        const slot2Date = new Date(slot0Date.getTime() + 60 * 60000);
-
         const elSlot0 = document.getElementById('epg-time-slot-0');
         const elSlot1 = document.getElementById('epg-time-slot-1');
         const elSlot2 = document.getElementById('epg-time-slot-2');
-        if (elSlot0) elSlot0.innerText = window.formatTime12 ? window.formatTime12(slot0Date) : '--:--';
-        if (elSlot1) elSlot1.innerText = window.formatTime12 ? window.formatTime12(slot1Date) : '--:--';
-        if (elSlot2) elSlot2.innerText = window.formatTime12 ? window.formatTime12(slot2Date) : '--:--';
+        if (elSlot0) elSlot0.innerText = 'NO AR AGORA';
+        if (elSlot1) elSlot1.innerText = 'A SEGUIR';
+        if (elSlot2) elSlot2.innerText = 'DEPOIS';
 
         this.channels.forEach((ch, chIdx) => {
             const row = document.createElement('div');
@@ -736,11 +729,14 @@ class RetroTVController {
             // Channel Label Cell (left)
             const chCell = document.createElement('div');
             chCell.className = 'epg-channel-cell';
-            const logoHtml = ch.logo ? `<img src="${ch.logo}" alt="" class="epg-cell-logo" onerror="this.style.display='none'">` : '';
+            const logoHtml = ch.logo
+                ? `<div class="epg-cell-logo-slot"><img src="${ch.logo}" alt="" class="epg-cell-logo" onerror="this.parentElement.innerHTML='<span class=\\'epg-cell-logo-fallback\\'>📺</span>'"></div>`
+                : `<div class="epg-cell-logo-slot"><span class="epg-cell-logo-fallback">📺</span></div>`;
+
             chCell.innerHTML = `
                 <span class="cell-ch-num">${ch.id}</span>
                 ${logoHtml}
-                <span class="cell-ch-name">${ch.code || ch.name}</span>
+                <span class="cell-ch-name" title="${ch.name}">${ch.name || ch.code}</span>
             `;
             chCell.addEventListener('click', () => {
                 this.guideSelectedChannelIndex = chIdx;
@@ -755,9 +751,9 @@ class RetroTVController {
 
             // Generate 3 schedule program slots for timeline
             const schedule = ch.schedule || [
-                { title: ch.title, time: "--:--" },
-                { title: ch.title, time: "--:--" },
-                { title: ch.title, time: "--:--" }
+                { title: ch.title, time: "--:--", timeSlot: "--:--" },
+                { title: ch.title, time: "--:--", timeSlot: "--:--" },
+                { title: ch.title, time: "--:--", timeSlot: "--:--" }
             ];
 
             schedule.slice(0, 3).forEach((item, slotIdx) => {
@@ -768,8 +764,11 @@ class RetroTVController {
                 // Add retro < or > overflow markers
                 const prefix = slotIdx === 0 ? '< ' : '';
                 const suffix = slotIdx === 2 ? ' >' : '';
+                const timeTag = item.time && item.time !== '--:--' ? `<span class="epg-block-time">${item.time}</span>` : '';
+
                 block.innerHTML = `
-                    <span>${prefix}${item.title}</span>
+                    ${timeTag}
+                    <span class="epg-block-title" title="${item.title}">${prefix}${item.title}</span>
                     <span class="epg-program-arrow">${suffix}</span>
                 `;
 
@@ -880,11 +879,37 @@ class RetroTVController {
                     } : ch.schedule[2]
                 ];
 
-                if (this.isGuideOpen && this.guideSelectedChannelIndex === this.channels.indexOf(ch)) {
+                // Atualiza os blocos da linha desse canal no grid com os horários e títulos reais
+                const chIdx = this.channels.indexOf(ch);
+                if (chIdx !== -1) {
+                    ch.schedule.slice(0, 3).forEach((item, slotIdx) => {
+                        const block = document.getElementById(`epg-block-${chIdx}-${slotIdx}`);
+                        if (block) {
+                            const prefix = slotIdx === 0 ? '< ' : '';
+                            const suffix = slotIdx === 2 ? ' >' : '';
+                            const timeTag = item.time && item.time !== '--:--' ? `<span class="epg-block-time">${item.time}</span>` : '';
+                            block.innerHTML = `
+                                ${timeTag}
+                                <span class="epg-block-title" title="${item.title}">${prefix}${item.title}</span>
+                                <span class="epg-program-arrow">${suffix}</span>
+                            `;
+                        }
+                    });
+                }
+
+                if (this.isGuideOpen && this.guideSelectedChannelIndex === chIdx) {
                     const synopsisEl = document.getElementById('epg-synopsis-text');
+                    const timeslotEl = document.getElementById('epg-timeslot');
+                    const ratingEl = document.getElementById('epg-rating');
                     const currentSlot = ch.schedule[this.guideSelectedSlotIndex];
                     if (synopsisEl && currentSlot) {
                         synopsisEl.innerText = currentSlot.description || ch.description;
+                    }
+                    if (timeslotEl && currentSlot) {
+                        timeslotEl.innerText = currentSlot.timeSlot || ch.timeSlot;
+                    }
+                    if (ratingEl && currentSlot) {
+                        ratingEl.innerText = currentSlot.rating || ch.rating || 'LIVRE';
                     }
                 }
             }
@@ -945,15 +970,17 @@ class RetroTVController {
             item.className = 'mini-guide-item';
             item.id = `mini-guide-item-${idx}`;
 
-            const logoHtml = ch.logo ? `<img src="${ch.logo}" alt="" class="mini-guide-logo" onerror="this.style.display='none'">` : '';
+            const logoHtml = ch.logo
+                ? `<div class="mini-guide-logo-slot"><img src="${ch.logo}" alt="" class="mini-guide-logo" onerror="this.parentElement.innerHTML='<span class=\\'mini-guide-logo-fallback\\'>📺</span>'"></div>`
+                : `<div class="mini-guide-logo-slot"><span class="mini-guide-logo-fallback">📺</span></div>`;
 
             item.innerHTML = `
                 <div class="mini-guide-ch-left">
                     <span class="mini-guide-num">${ch.id}</span>
                     ${logoHtml}
-                    <span class="mini-guide-title">${ch.code || ch.name}</span>
+                    <span class="mini-guide-title" title="${ch.name}">${ch.name || ch.code}</span>
                 </div>
-                <div class="mini-guide-prog">${ch.title}</div>
+                <div class="mini-guide-prog" title="${ch.title}">${ch.title}</div>
             `;
 
             item.addEventListener('click', () => {
