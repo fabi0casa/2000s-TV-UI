@@ -112,6 +112,177 @@ html, body {
 }
 
 /* ===================================================================
+   FRUTIGER AERO CHANNEL LOADING SPINNER (2000s Glossy Aqua UI)
+   =================================================================== */
+.channel-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 18px;
+    z-index: 15;
+    background: radial-gradient(circle at center, rgba(7, 31, 84, 0.45) 0%, rgba(2, 8, 20, 0.8) 100%);
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.25s ease-out;
+}
+
+.channel-loading-overlay.hidden {
+    display: none !important;
+    opacity: 0;
+}
+
+/* Glass Orb & Rings Container */
+.aero-spinner-container {
+    position: relative;
+    width: 86px;
+    height: 86px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Ambient Back Glow */
+.aero-spinner-ambient {
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0, 229, 255, 0.45) 0%, rgba(0, 119, 255, 0.18) 45%, transparent 70%);
+    animation: aeroGlowPulse 2.4s ease-in-out infinite alternate;
+    pointer-events: none;
+}
+
+/* Outer Glass Ring Track */
+.aero-spinner-track {
+    position: absolute;
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    border: 3.5px solid rgba(255, 255, 255, 0.18);
+    box-shadow: inset 0 0 10px rgba(0, 210, 255, 0.35), 0 0 12px rgba(0, 170, 255, 0.2);
+}
+
+/* Spinning Liquid Aqua Ring with Specular Tip */
+.aero-spinner-ring {
+    position: absolute;
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    border: 3.5px solid transparent;
+    border-top: 3.5px solid #ffffff;
+    border-right: 3.5px solid #00f0ff;
+    border-bottom: 3.5px solid #0088ff;
+    filter: drop-shadow(0 0 10px rgba(0, 240, 255, 0.85));
+    animation: aeroSpin 1.1s cubic-bezier(0.5, 0.1, 0.4, 0.9) infinite;
+}
+
+/* Secondary Inner Reverse Counter-Ring for 3D Depth */
+.aero-spinner-ring-inner {
+    position: absolute;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 2.5px solid transparent;
+    border-top: 2.5px solid #a6f4ff;
+    border-left: 2.5px solid #00a2ff;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 6px rgba(0, 200, 255, 0.7));
+    animation: aeroSpinReverse 1.6s linear infinite;
+}
+
+/* 3D Glossy Aero Core Bubble */
+.aero-spinner-orb {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff 0%, #76ddff 25%, #0099ff 65%, #003e8a 100%);
+    box-shadow: 0 0 16px rgba(0, 210, 255, 0.85),
+                inset 0 1px 2px rgba(255, 255, 255, 1),
+                inset 0 -2px 5px rgba(0, 20, 60, 0.8);
+    animation: aeroOrbPulse 2s ease-in-out infinite alternate;
+}
+
+/* Specular Crescent Reflection over the Orb */
+.aero-spinner-orb::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 4px;
+    width: 14px;
+    height: 7px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 100%);
+    transform: rotate(-25deg);
+}
+
+/* Aero Glass Label Badge */
+.aero-loading-badge {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 6px 20px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.28) 0%, rgba(13, 59, 143, 0.65) 45%, rgba(7, 31, 84, 0.9) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 20px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45),
+                inset 0 1px 2px rgba(255, 255, 255, 0.85),
+                0 0 14px rgba(0, 180, 255, 0.4);
+    backdrop-filter: blur(8px);
+}
+
+.aero-loading-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #00ffcc;
+    box-shadow: 0 0 8px #00ffcc;
+    animation: aeroDotBlink 0.9s ease-in-out infinite alternate;
+}
+
+.aero-loading-text {
+    font-family: var(--osd-font);
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #eff6fc;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 8px rgba(0, 210, 255, 0.6);
+}
+
+@keyframes aeroSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+@keyframes aeroSpinReverse {
+    0% { transform: rotate(360deg); }
+    100% { transform: rotate(0deg); }
+}
+
+@keyframes aeroGlowPulse {
+    0% { transform: scale(0.92); opacity: 0.55; }
+    100% { transform: scale(1.15); opacity: 0.95; }
+}
+
+@keyframes aeroOrbPulse {
+    0% { transform: scale(0.95); filter: brightness(1); }
+    100% { transform: scale(1.05); filter: brightness(1.2); }
+}
+
+@keyframes aeroDotBlink {
+    0% { opacity: 0.35; transform: scale(0.85); }
+    100% { opacity: 1; transform: scale(1.2); }
+}
+
+/* ===================================================================
    CRT SCANLINES & PHOSPHOR OVERLAY
    =================================================================== */
 .crt-overlay {

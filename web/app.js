@@ -83,6 +83,10 @@ class RetroTVController {
         this.pendingYouTubeId = null;
         this.mediaOSDTimeout = null;
         this.hls = null;
+        this.channelLoadingSpinner = document.getElementById('channel-loading-spinner');
+        this.channelLoadTimeout = null;
+        this.currentTuneToken = 0;
+        this.isChannelInNoSignalState = false;
         this.apiBaseUrl = (typeof window !== 'undefined' && window.location && window.location.hostname)
             ? `http://${window.location.hostname}:1414`
             : 'http://localhost:1414';
@@ -257,6 +261,67 @@ class RetroTVController {
         }
     }
 
+    showLoadingSpinner() {
+        if (this.channelLoadingSpinner && this.isPowerOn) {
+            this.channelLoadingSpinner.classList.remove('hidden');
+        }
+    }
+
+    hideLoadingSpinner() {
+        if (this.channelLoadingSpinner) {
+            this.channelLoadingSpinner.classList.add('hidden');
+        }
+    }
+
+    /**
+     * Exibe o conteúdo de Sem Sinal do Canal 000 no canal atualmente sintonizado.
+     * NÃO redireciona o usuário para o canal 000 e NÃO exibe nenhum popup de erro.
+     */
+    displayNoSignalContent() {
+        if (!this.isPowerOn) return;
+
+        if (this.channelLoadTimeout) {
+            clearTimeout(this.channelLoadTimeout);
+            this.channelLoadTimeout = null;
+        }
+
+        this.hideLoadingSpinner();
+
+        if (this.hls) {
+            try { this.hls.destroy(); } catch(e) {}
+            this.hls = null;
+        }
+
+        if (this.customVideo) {
+            this.customVideo.onplaying = null;
+            this.customVideo.onerror = null;
+            this.customVideo.onwaiting = null;
+            try {
+                this.customVideo.pause();
+                this.customVideo.removeAttribute('src');
+                this.customVideo.load();
+            } catch(e) {}
+            this.customVideo.style.display = 'none';
+        }
+
+        if (this.youtubeContainer) {
+            this.youtubeContainer.style.display = 'none';
+        }
+
+        // Exibe o canvas de Sem Sinal (chiado de TV + logo Aquanet saltitante do canal 000)
+        this.tvCanvas.style.display = 'block';
+        this.tvFeed.setChannelType('static');
+        this.pipFeed.setChannelType('static');
+        this.pipFeed.setVideoSource(null);
+
+        // Áudio analógico de chiado de TV idêntico ao canal 000
+        if (window.retroAudio) {
+            window.retroAudio.startStaticNoise();
+        }
+
+        this.isChannelInNoSignalState = true;
+    }
+
     /**
      * Tune channel by index in CHANNELS_DATA
      */
@@ -272,6 +337,14 @@ class RetroTVController {
         const ch = this.channels[this.currentChannelIndex];
         if (!ch) return;
 
+        // Limpa estado anterior de carregamento e timers
+        this.currentTuneToken = (this.currentTuneToken || 0) + 1;
+        if (this.channelLoadTimeout) {
+            clearTimeout(this.channelLoadTimeout);
+            this.channelLoadTimeout = null;
+        }
+        this.isChannelInNoSignalState = false;
+
         // Sound effect
         if (playAudio && window.retroAudio) {
             window.retroAudio.playChannelSwitch();
@@ -279,6 +352,7 @@ class RetroTVController {
 
         // Check if Canal 000 (Sem Sinal), IPTV stream, YouTube, or Custom video
         if (ch.type === 'static' || ch.number === 0 || ch.number === 404) {
+            this.hideLoadingSpinner();
             this.currentMediaMode = 'canvas';
             this.pauseYouTube();
             if (this.youtubeContainer) this.youtubeContainer.style.display = 'none';
@@ -287,6 +361,9 @@ class RetroTVController {
                 this.hls = null;
             }
             if (this.customVideo) {
+                this.customVideo.onplaying = null;
+                this.customVideo.onerror = null;
+                this.customVideo.onwaiting = null;
                 this.customVideo.pause();
                 this.customVideo.removeAttribute('src');
                 this.customVideo.load();
@@ -303,7 +380,11 @@ class RetroTVController {
             this.pauseYouTube();
             if (this.youtubeContainer) this.youtubeContainer.style.display = 'none';
             this.tvCanvas.style.display = 'none';
-            this.customVideo.style.display = 'block';
+            if (this.customVideo) {
+                this.customVideo.pause();
+                this.customVideo.style.display = 'none';
+            }
+            this.showLoadingSpinner();
             this.playIPTVChannel(ch);
             this.pipFeed.setChannelType('iptv');
             this.pipFeed.setVideoSource(this.customVideo);
@@ -315,13 +396,19 @@ class RetroTVController {
                 this.hls = null;
             }
             if (this.customVideo) {
+                this.customVideo.onplaying = null;
+                this.customVideo.onerror = null;
+                this.customVideo.onwaiting = null;
                 this.customVideo.pause();
+                this.customVideo.removeAttribute('src');
+                this.customVideo.load();
                 this.customVideo.style.display = 'none';
             }
             this.tvCanvas.style.display = 'none';
             if (this.youtubeContainer) {
                 this.youtubeContainer.style.display = 'block';
             }
+            this.showLoadingSpinner();
             this.playYouTube();
             this.pipFeed.setChannelType('youtube');
             this.pipFeed.setVideoSource(null);
@@ -333,11 +420,17 @@ class RetroTVController {
                 this.youtubeContainer.style.display = 'none';
             }
             this.tvCanvas.style.display = 'none';
+            this.showLoadingSpinner();
             this.customVideo.style.display = 'block';
-            this.customVideo.play().catch(() => {});
+            this.customVideo.play().then(() => {
+                this.hideLoadingSpinner();
+            }).catch(() => {
+                this.displayNoSignalContent();
+            });
             this.pipFeed.setChannelType('custom');
             this.pipFeed.setVideoSource(this.customVideo);
         } else {
+            this.hideLoadingSpinner();
             this.currentMediaMode = 'canvas';
             if (window.retroAudio) window.retroAudio.stopStaticNoise();
             this.pauseYouTube();
@@ -345,6 +438,9 @@ class RetroTVController {
                 this.youtubeContainer.style.display = 'none';
             }
             if (this.customVideo) {
+                this.customVideo.onplaying = null;
+                this.customVideo.onerror = null;
+                this.customVideo.onwaiting = null;
                 this.customVideo.pause();
                 this.customVideo.style.display = 'none';
             }
@@ -385,52 +481,110 @@ class RetroTVController {
         const streamUrl = ch.liveUrl || ch.streamUrl;
         if (!streamUrl) {
             console.warn('[IPTV] Canal sem URL:', ch);
+            this.displayNoSignalContent();
             return;
         }
+
+        const token = this.currentTuneToken;
+
+        if (this.channelLoadTimeout) {
+            clearTimeout(this.channelLoadTimeout);
+            this.channelLoadTimeout = null;
+        }
+
+        this.showLoadingSpinner();
+
+        // Se após 1 minuto o sinal do canal não iniciar a reprodução, exibe Sem Sinal no canal atual
+        this.channelLoadTimeout = setTimeout(() => {
+            if (this.currentTuneToken !== token) return;
+            console.warn('[IPTV] Timeout ao sintonizar canal:', ch.name);
+            this.displayNoSignalContent();
+        }, 60000);
 
         this.customVideo.volume = this.volume;
         this.customVideo.muted = this.isMuted;
 
+        this.customVideo.onplaying = () => {
+            if (this.currentTuneToken !== token) return;
+            if (this.channelLoadTimeout) {
+                clearTimeout(this.channelLoadTimeout);
+                this.channelLoadTimeout = null;
+            }
+            this.hideLoadingSpinner();
+            this.isChannelInNoSignalState = false;
+            this.tvCanvas.style.display = 'none';
+            this.customVideo.style.display = 'block';
+            if (window.retroAudio) {
+                window.retroAudio.stopStaticNoise();
+            }
+            this.pipFeed.setChannelType('iptv');
+            this.pipFeed.setVideoSource(this.customVideo);
+        };
+
+        this.customVideo.onwaiting = () => {
+            if (this.currentTuneToken !== token) return;
+            if (!this.isChannelInNoSignalState) {
+                this.showLoadingSpinner();
+            }
+        };
+
+        this.customVideo.onerror = (e) => {
+            if (this.currentTuneToken !== token) return;
+            console.warn('[IPTV Video Error]', e);
+            this.displayNoSignalContent();
+        };
+
         if (this.hls) {
-            this.hls.destroy();
+            try { this.hls.destroy(); } catch(e) {}
             this.hls = null;
         }
+
+        let hasAttemptedFallback = false;
 
         if (window.Hls && Hls.isSupported()) {
             this.hls = new Hls({
                 enableWorker: true,
                 lowLatencyMode: true,
-                backBufferLength: 60
+                backBufferLength: 60,
+                manifestLoadingTimeOut: 7000,
+                levelLoadingTimeOut: 7000,
+                fragLoadingTimeOut: 7000
             });
 
             this.hls.loadSource(streamUrl);
             this.hls.attachMedia(this.customVideo);
 
             this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                if (this.currentTuneToken !== token) return;
                 this.customVideo.play().catch(e => {
                     console.warn('[IPTV] Autoplay blocked or delayed:', e);
                 });
             });
 
             this.hls.on(Hls.Events.ERROR, (event, data) => {
+                if (this.currentTuneToken !== token) return;
                 if (data.fatal) {
                     console.warn('[HLS Fatal Error]', data.type, data.details);
                     switch (data.type) {
                         case Hls.ErrorTypes.NETWORK_ERROR:
-                            if (ch.streamUrl && streamUrl !== ch.streamUrl) {
+                            if (!hasAttemptedFallback && ch.streamUrl && streamUrl !== ch.streamUrl) {
+                                hasAttemptedFallback = true;
                                 console.log('[IPTV] Fallback para stream original:', ch.streamUrl);
                                 this.hls.loadSource(ch.streamUrl);
                                 this.hls.startLoad();
                             } else {
-                                this.hls.startLoad();
+                                this.displayNoSignalContent();
                             }
                             break;
                         case Hls.ErrorTypes.MEDIA_ERROR:
-                            this.hls.recoverMediaError();
+                            try {
+                                this.hls.recoverMediaError();
+                            } catch(err) {
+                                this.displayNoSignalContent();
+                            }
                             break;
                         default:
-                            this.hls.destroy();
-                            this.hls = null;
+                            this.displayNoSignalContent();
                             break;
                     }
                 }
@@ -446,10 +600,9 @@ class RetroTVController {
 
     /**
      * Tune directly by channel numeric code (e.g. 1, 294, 0, etc.)
-     * Mandar para 000 caso não exista.
      */
     tuneByNumber(num) {
-        if (num === 0 || num === 404) {
+        if (num === 0) {
             const staticIdx = this.channels.findIndex(c => c.type === 'static' || c.number === 0 || c.id === "000");
             if (staticIdx !== -1) {
                 this.tuneChannelByIndex(staticIdx, true);
@@ -457,16 +610,28 @@ class RetroTVController {
             }
         }
 
-        const targetIndex = this.channels.findIndex(c => c.number === num || parseInt(c.id, 10) === num);
+        let targetIndex = this.channels.findIndex(c => c.number === num || parseInt(c.id, 10) === num);
         if (targetIndex !== -1) {
             this.tuneChannelByIndex(targetIndex, true);
         } else {
-            // Canal inexistente -> mandar para 000
-            const staticIdx = this.channels.findIndex(c => c.type === 'static' || c.number === 0 || c.id === "000");
-            if (staticIdx !== -1) {
-                this.tuneChannelByIndex(staticIdx, true);
-                this.showMediaOSD('⚠', 'CANAL NÃO ENCONTRADO - 000');
-            }
+            // Canal inexistente -> criar entrada sem sinal sem redirecionar para 000 e sem popup
+            const nonExistentCh = {
+                id: String(num).padStart(3, '0'),
+                number: num,
+                code: "SEM SINAL",
+                name: `CANAL ${String(num).padStart(3, '0')}`,
+                title: "Sinal do Satélite Interrompido",
+                timeSlot: window.formatTimeSlot ? window.formatTimeSlot(null, null) : "00:00 - 12:00",
+                language: "Português",
+                rating: "LIVRE",
+                category: "Sem Sinal",
+                description: "Canal sem sinal de transmissão ou fora da área de cobertura do satélite.",
+                schedule: [],
+                type: "static"
+            };
+            this.channels.push(nonExistentCh);
+            targetIndex = this.channels.length - 1;
+            this.tuneChannelByIndex(targetIndex, true);
         }
     }
 
@@ -1490,6 +1655,11 @@ class RetroTVController {
             this.tuneChannelByIndex(this.currentChannelIndex, true);
             this.showBanner(4000);
         } else {
+            this.hideLoadingSpinner();
+            if (this.channelLoadTimeout) {
+                clearTimeout(this.channelLoadTimeout);
+                this.channelLoadTimeout = null;
+            }
             window.retroAudio.stopStaticNoise();
             window.retroAudio.playBeep('exit');
             this.hideBanner();
@@ -2385,11 +2555,16 @@ class RetroTVController {
 
     onYouTubeStateChange(e) {
         if (e.data === 1) { // PLAYING
+            this.hideLoadingSpinner();
             if (!this.isPowerOn) {
                 this.pauseYouTube();
                 return;
             }
             this.updateYouTubeMetadata();
+        } else if (e.data === 3) { // BUFFERING
+            if (this.currentMediaMode === 'youtube') {
+                this.showLoadingSpinner();
+            }
         } else if (e.data === 0) { // ENDED
             this.showMediaOSD('⏹', 'VÍDEO CONCLUÍDO');
         }
@@ -2397,16 +2572,7 @@ class RetroTVController {
 
     onYouTubeError(e) {
         console.warn('YouTube Player error code:', e.data);
-        let msg = 'Erro ao carregar o vídeo do YouTube.';
-        if (e.data === 101 || e.data === 150) {
-            msg = 'O autor deste vídeo não permite reprodução incorporada em sites externos.';
-        } else if (e.data === 100) {
-            msg = 'Vídeo não encontrado ou privado no YouTube.';
-        } else if (e.data === 2) {
-            msg = 'Link ou ID de vídeo do YouTube inválido.';
-        }
-        alert(msg);
-        this.showMediaOSD('✕', 'ERRO NO VÍDEO');
+        this.displayNoSignalContent();
     }
 
     updateYouTubeMetadata(customTitle, customAuthor) {
@@ -2614,6 +2780,14 @@ class RetroTVController {
         this.tvCanvas.style.display = 'none';
         window.retroAudio.stopStaticNoise();
 
+        this.showLoadingSpinner();
+        this.customVideo.onplaying = () => {
+            this.hideLoadingSpinner();
+        };
+        this.customVideo.onerror = () => {
+            this.displayNoSignalContent();
+        };
+
         // Check if HLS stream (.m3u8)
         if (url.includes('.m3u8')) {
             if (window.Hls && Hls.isSupported()) {
@@ -2626,6 +2800,11 @@ class RetroTVController {
                 this.hls.attachMedia(this.customVideo);
                 this.hls.on(Hls.Events.MANIFEST_PARSED, () => {
                     this.customVideo.play().catch(() => {});
+                });
+                this.hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) {
+                        this.displayNoSignalContent();
+                    }
                 });
             } else if (this.customVideo.canPlayType('application/vnd.apple.mpegurl')) {
                 this.customVideo.src = url;
@@ -2641,7 +2820,8 @@ class RetroTVController {
             }
             this.customVideo.src = url;
             this.customVideo.play().catch(e => {
-                alert('Não foi possível carregar a URL fornecida: ' + e.message);
+                console.warn('[Custom Video Error]', e);
+                this.displayNoSignalContent();
             });
         }
 
