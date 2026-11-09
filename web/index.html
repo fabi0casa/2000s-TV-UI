@@ -340,9 +340,9 @@
                 <button class="btn-rocker" id="rc-vol-down">-</button>
             </div>
             <div class="rocker-box">
-                <button class="btn-rocker" id="rc-ch-up">+</button>
-                <span class="rocker-label">CHAN</span>
-                <button class="btn-rocker" id="rc-ch-down">-</button>
+                <button class="btn-rocker" id="rc-ch-up" title="Canal + (CH +)">+</button>
+                <span class="rocker-label">CH</span>
+                <button class="btn-rocker" id="rc-ch-down" title="Canal - (CH -)">-</button>
             </div>
         </div>
 
@@ -413,14 +413,17 @@
 
         <div class="playlist-options-list">
             <!-- Opção Brasil -->
-            <div class="playlist-card active" data-playlist="br" id="playlist-opt-br" tabindex="0">
+            <div class="playlist-card" data-playlist="br" id="playlist-opt-br" tabindex="0">
                 <div class="playlist-flag-bubble">
                     <span class="playlist-flag-icon">BR</span>
                 </div>
                 <div class="playlist-card-content">
                     <div class="playlist-card-title-row">
                         <span class="playlist-title">Canais Brasileiros</span>
-                        <span class="playlist-active-badge">ATIVO</span>
+                        <div class="playlist-card-badges">
+                            <span class="playlist-current-tag">● NO AR</span>
+                            <span class="playlist-action-badge">SINTONIZAR</span>
+                        </div>
                     </div>
                     <span class="playlist-desc">Transmissão ao vivo do Brasil • IPTV & EPG Nacional</span>
                 </div>
@@ -434,7 +437,10 @@
                 <div class="playlist-card-content">
                     <div class="playlist-card-title-row">
                         <span class="playlist-title">American Channels</span>
-                        <span class="playlist-active-badge">SELECIONAR</span>
+                        <div class="playlist-card-badges">
+                            <span class="playlist-current-tag">● NO AR</span>
+                            <span class="playlist-action-badge">SINTONIZAR</span>
+                        </div>
                     </div>
                     <span class="playlist-desc">United States Live TV • News, Entertainment & Fast Streams</span>
                 </div>

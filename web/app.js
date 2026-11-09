@@ -16,6 +16,7 @@ class RetroTVController {
 
         // Mini Guide State
         this.isMiniGuideOpen = false;
+        this.miniGuideSelectedIndex = 0;
 
         // Banner State
         this.isBannerVisible = false;
@@ -356,11 +357,23 @@ class RetroTVController {
         // Update Top Banner Elements
         this.updateBannerForChannel(this.currentChannelIndex);
 
-        // Show Info Banner
-        this.showBanner(4500);
+        // Show Info Banner if Guide is not open
+        if (!this.isGuideOpen) {
+            this.showBanner(4500);
+        }
 
         // Update active class in Mini Guide
+        if (this.isMiniGuideOpen) {
+            this.miniGuideSelectedIndex = this.currentChannelIndex;
+        }
         this.updateMiniGuideHighlight();
+
+        // Update active class and selection in EPG Guide if open
+        if (this.isGuideOpen) {
+            this.guideSelectedChannelIndex = this.currentChannelIndex;
+            this.guideSelectedSlotIndex = 0;
+            this.updateEPGSelection();
+        }
     }
 
     /**
@@ -459,21 +472,15 @@ class RetroTVController {
 
     /**
      * Channel Up / Down
+     * Os botões CH sempre trocam de canal normalmente, mesmo com o Guia ou Mini Guia abertos.
+     * A navegação interna dos menus é feita exclusivamente pelas setinhas (D-Pad).
      */
     channelUp() {
-        if (this.isGuideOpen) {
-            this.guideMoveVertical(-1);
-        } else {
-            this.tuneChannelByIndex(this.currentChannelIndex + 1);
-        }
+        this.tuneChannelByIndex(this.currentChannelIndex + 1);
     }
 
     channelDown() {
-        if (this.isGuideOpen) {
-            this.guideMoveVertical(1);
-        } else {
-            this.tuneChannelByIndex(this.currentChannelIndex - 1);
-        }
+        this.tuneChannelByIndex(this.currentChannelIndex - 1);
     }
 
     /**
@@ -595,7 +602,7 @@ class RetroTVController {
         } else if (this.isGuideOpen) {
             this.guideMoveVertical(-1);
         } else if (this.isMiniGuideOpen) {
-            this.channelDown(); // Visualmente sobe na lista do Mini Guide (índice anterior)
+            this.miniGuideMoveVertical(-1);
         } else {
             this.adjustVolume(0.05);
         }
@@ -610,7 +617,7 @@ class RetroTVController {
         } else if (this.isGuideOpen) {
             this.guideMoveVertical(1);
         } else if (this.isMiniGuideOpen) {
-            this.channelUp(); // Visualmente desce na lista do Mini Guide (próximo índice)
+            this.miniGuideMoveVertical(1);
         } else {
             this.adjustVolume(-0.05);
         }
@@ -659,6 +666,16 @@ class RetroTVController {
 
         if (this.isPlaylistModalOpen) {
             this.confirmPlaylistSelection();
+            return;
+        }
+
+        if (this.isGuideOpen) {
+            this.guideSelectCurrent();
+            return;
+        }
+
+        if (this.isMiniGuideOpen) {
+            this.miniGuideSelectCurrent();
             return;
         }
 
@@ -890,6 +907,13 @@ class RetroTVController {
         // Limpa seleções anteriores
         document.querySelectorAll('.epg-row.selected').forEach(el => el.classList.remove('selected'));
         document.querySelectorAll('.epg-program-block.selected').forEach(el => el.classList.remove('selected'));
+        document.querySelectorAll('.epg-row.now-playing').forEach(el => el.classList.remove('now-playing'));
+
+        // Marca a linha do canal atualmente sintonizado na TV
+        const playingRow = document.getElementById(`epg-row-${this.currentChannelIndex}`);
+        if (playingRow) {
+            playingRow.classList.add('now-playing');
+        }
 
         const row = document.getElementById(`epg-row-${this.guideSelectedChannelIndex}`);
         const block = document.getElementById(`epg-block-${this.guideSelectedChannelIndex}-${this.guideSelectedSlotIndex}`) ||
@@ -925,9 +949,10 @@ class RetroTVController {
                 if (ratingEl) ratingEl.innerText = 'LIVRE';
             }
 
-            // Live preview in PIP box
-            this.pipFeed.setChannelType(ch.type);
-            if (ch.type === 'iptv' && this.customVideo && this.currentChannelIndex === this.guideSelectedChannelIndex) {
+            // O PIP do Guia exibe continuamente a transmissão do canal atualmente sintonizado na TV
+            const currentPlayingCh = this.channels[this.currentChannelIndex] || ch;
+            this.pipFeed.setChannelType(currentPlayingCh.type);
+            if (currentPlayingCh.type === 'iptv' && this.customVideo) {
                 this.pipFeed.setVideoSource(this.customVideo);
             } else {
                 this.pipFeed.setVideoSource(null);
@@ -1105,12 +1130,20 @@ class RetroTVController {
                     ${logoHtml}
                     <span class="mini-guide-title" title="${ch.name}">${ch.name || ch.code}</span>
                 </div>
-                <div class="mini-guide-prog" title="${ch.title}">${ch.title}</div>
+                <div class="mini-guide-prog" title="${ch.title}">
+                    <span class="mini-guide-prog-text">${ch.title}</span>
+                    <span class="mini-guide-status-badge">NO AR</span>
+                </div>
             `;
 
             item.addEventListener('click', () => {
-                this.tuneChannelByIndex(idx);
-                this.closeMiniGuide();
+                this.miniGuideSelectedIndex = idx;
+                this.miniGuideSelectCurrent();
+            });
+
+            item.addEventListener('mouseenter', () => {
+                this.miniGuideSelectedIndex = idx;
+                this.updateMiniGuideHighlight();
             });
 
             list.appendChild(item);
@@ -1120,12 +1153,53 @@ class RetroTVController {
     }
 
     updateMiniGuideHighlight() {
-        document.querySelectorAll('.mini-guide-item.active').forEach(el => el.classList.remove('active'));
-        const activeItem = document.getElementById(`mini-guide-item-${this.currentChannelIndex}`);
-        if (activeItem) {
-            activeItem.classList.add('active');
-            activeItem.scrollIntoView({ block: 'nearest' });
+        document.querySelectorAll('.mini-guide-item').forEach(el => {
+            el.classList.remove('selected', 'focused', 'now-playing', 'active');
+        });
+
+        // Marca o canal atualmente em reprodução na TV
+        const playingItem = document.getElementById(`mini-guide-item-${this.currentChannelIndex}`);
+        if (playingItem) {
+            playingItem.classList.add('now-playing');
         }
+
+        // Marca o canal atualmente selecionado/focado pelo cursor
+        const targetIdx = (this.miniGuideSelectedIndex !== undefined && this.miniGuideSelectedIndex >= 0)
+            ? this.miniGuideSelectedIndex
+            : this.currentChannelIndex;
+
+        const selectedItem = document.getElementById(`mini-guide-item-${targetIdx}`);
+        if (selectedItem) {
+            selectedItem.classList.add('selected');
+            selectedItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    }
+
+    miniGuideMoveVertical(delta) {
+        if (!this.channels || this.channels.length === 0) return;
+        if (window.retroAudio) {
+            window.retroAudio.playBeep('nav');
+        }
+        if (this.miniGuideSelectedIndex === undefined || this.miniGuideSelectedIndex < 0) {
+            this.miniGuideSelectedIndex = this.currentChannelIndex;
+        }
+        this.miniGuideSelectedIndex += delta;
+        if (this.miniGuideSelectedIndex < 0) {
+            this.miniGuideSelectedIndex = this.channels.length - 1;
+        } else if (this.miniGuideSelectedIndex >= this.channels.length) {
+            this.miniGuideSelectedIndex = 0;
+        }
+        this.updateMiniGuideHighlight();
+    }
+
+    miniGuideSelectCurrent() {
+        if (!this.isPowerOn) return;
+        if (this.miniGuideSelectedIndex === undefined || this.miniGuideSelectedIndex < 0) {
+            this.miniGuideSelectedIndex = this.currentChannelIndex;
+        }
+        window.retroAudio.playBeep('select');
+        this.tuneChannelByIndex(this.miniGuideSelectedIndex, true);
+        this.closeMiniGuide();
     }
 
     toggleMiniGuide() {
@@ -1140,6 +1214,7 @@ class RetroTVController {
     openMiniGuide() {
         window.retroAudio.playBeep('select');
         this.closeGuide();
+        this.miniGuideSelectedIndex = this.currentChannelIndex;
         this.updateMiniGuideHighlight();
         this.miniGuide.classList.remove('hidden');
         this.isMiniGuideOpen = true;
@@ -1487,6 +1562,8 @@ class RetroTVController {
                         this.confirmPlaylistSelection();
                     } else if (this.isGuideOpen) {
                         this.guideSelectCurrent();
+                    } else if (this.isMiniGuideOpen) {
+                        this.miniGuideSelectCurrent();
                     } else {
                         this.handleOkPress();
                     }
@@ -1569,6 +1646,16 @@ class RetroTVController {
                     } else {
                         this.openCustomStreamModal();
                     }
+                    break;
+                case 'ChannelUp':
+                case 'MediaChannelUp':
+                    e.preventDefault();
+                    this.channelUp();
+                    break;
+                case 'ChannelDown':
+                case 'MediaChannelDown':
+                    e.preventDefault();
+                    this.channelDown();
                     break;
                 case 'PageUp':
                     e.preventDefault();
@@ -1663,6 +1750,7 @@ class RetroTVController {
             if (this.dialDigits.length > 0) this.confirmDial();
             else if (this.isPlaylistModalOpen) this.confirmPlaylistSelection();
             else if (this.isGuideOpen) this.guideSelectCurrent();
+            else if (this.isMiniGuideOpen) this.miniGuideSelectCurrent();
             else this.handleOkPress();
         });
 
@@ -2024,25 +2112,40 @@ class RetroTVController {
      * Atualiza o estado visual das opções do modal de playlist
      */
     updatePlaylistModalUI() {
-        if (this.cardPlaylistBr) {
-            const isBrActive = (this.currentPlaylist === 'br');
-            const isBrFocused = (this.modalSelectedPlaylist === 'br');
-            this.cardPlaylistBr.classList.toggle('active', isBrActive);
-            this.cardPlaylistBr.classList.toggle('focused', isBrFocused);
-            const badge = this.cardPlaylistBr.querySelector('.playlist-active-badge');
-            if (badge) {
-                badge.innerText = isBrActive ? 'ATIVO' : (isBrFocused ? 'SELECIONAR' : 'TROCAR');
-            }
-        }
+        const updateCard = (card, playlistKey) => {
+            if (!card) return;
+            const isCurrent = (this.currentPlaylist === playlistKey);
+            const isFocused = (this.modalSelectedPlaylist === playlistKey);
 
-        if (this.cardPlaylistUs) {
-            const isUsActive = (this.currentPlaylist === 'us');
-            const isUsFocused = (this.modalSelectedPlaylist === 'us');
-            this.cardPlaylistUs.classList.toggle('active', isUsActive);
-            this.cardPlaylistUs.classList.toggle('focused', isUsFocused);
-            const badge = this.cardPlaylistUs.querySelector('.playlist-active-badge');
+            card.classList.toggle('is-current', isCurrent);
+            card.classList.toggle('focused', isFocused);
+
+            const currentTag = card.querySelector('.playlist-current-tag');
+            if (currentTag) {
+                currentTag.style.display = isCurrent ? 'inline-flex' : 'none';
+            }
+
+            const badge = card.querySelector('.playlist-action-badge');
             if (badge) {
-                badge.innerText = isUsActive ? 'ATIVO' : (isUsFocused ? 'SELECIONAR' : 'TROCAR');
+                if (isCurrent) {
+                    badge.innerText = isFocused ? 'ATUAL ✓' : 'SINTONIZADO';
+                    badge.className = 'playlist-action-badge badge-current';
+                } else {
+                    badge.innerText = isFocused ? 'SINTONIZAR ▶' : 'SELECIONAR';
+                    badge.className = isFocused ? 'playlist-action-badge badge-select-active' : 'playlist-action-badge badge-select-idle';
+                }
+            }
+        };
+
+        updateCard(this.cardPlaylistBr, 'br');
+        updateCard(this.cardPlaylistUs, 'us');
+
+        if (this.btnConfirmPlaylist) {
+            const targetName = (this.modalSelectedPlaylist === 'us') ? 'American Channels (EUA)' : 'Canais Brasileiros (BR)';
+            if (this.modalSelectedPlaylist === this.currentPlaylist) {
+                this.btnConfirmPlaylist.innerText = `Permanecer em ${this.modalSelectedPlaylist === 'us' ? 'American Channels' : 'Canais Brasileiros'}`;
+            } else {
+                this.btnConfirmPlaylist.innerText = `Sintonizar ${targetName}`;
             }
         }
     }

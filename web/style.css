@@ -688,6 +688,28 @@ html, body {
     background-color: rgba(2, 45, 90, 0.4);
 }
 
+/* EPG Row playing indicator (channel currently broadcasting) */
+.epg-row.now-playing .epg-channel-cell {
+    background: linear-gradient(90deg, rgba(0, 180, 255, 0.25) 0%, rgba(10, 50, 110, 0.95) 100%);
+    border-left: 3px solid #00f0ff;
+    box-shadow: inset 0 0 12px rgba(0, 240, 255, 0.3);
+}
+
+.epg-row.now-playing .cell-ch-num {
+    color: #00f0ff !important;
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.8), 0 0 20px rgba(0, 210, 255, 0.6) !important;
+}
+
+.epg-row.now-playing .cell-ch-name::after {
+    content: ' • NO AR';
+    font-size: 11px;
+    font-weight: 800;
+    color: #00f0ff;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.85);
+    margin-left: 6px;
+    letter-spacing: 0.5px;
+}
+
 .epg-channel-cell {
     width: 220px;
     min-width: 220px;
@@ -972,15 +994,29 @@ html, body {
     gap: 12px;
     cursor: pointer;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    transition: background 0.15s ease;
+    transition: all 0.15s ease;
     height: 48px;
     box-sizing: border-box;
+    border-left: 4px solid transparent;
 }
 
-.mini-guide-item:hover,
-.mini-guide-item.active {
-    background: linear-gradient(90deg, #1852a3 0%, #0c336b 100%);
+/* Playing channel (currently broadcasting) */
+.mini-guide-item.now-playing {
+    background: rgba(13, 71, 161, 0.45);
+}
+
+/* Focused / Selected (navigating with remote arrows) */
+.mini-guide-item.selected,
+.mini-guide-item:hover {
+    background: linear-gradient(90deg, #1d5cb0 0%, #0d3875 100%);
     border-left: 4px solid #f5a623;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35), 0 0 12px rgba(245, 166, 35, 0.35);
+}
+
+.mini-guide-item.now-playing.selected {
+    background: linear-gradient(90deg, #226bcc 0%, #10438a 100%);
+    border-left: 4px solid #4ade80;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 0 14px rgba(74, 222, 128, 0.4);
 }
 
 .mini-guide-ch-left {
@@ -1038,11 +1074,38 @@ html, body {
     color: #92bce8;
     flex: 1;
     min-width: 0;
-    text-align: right;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    line-height: 1.2;
+}
+
+.mini-guide-prog-text {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.2;
+    text-align: right;
+    flex: 1;
+    min-width: 0;
+}
+
+.mini-guide-status-badge {
+    display: none;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: linear-gradient(180deg, #4ade80 0%, #16a34a 100%);
+    color: #032510;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+    flex-shrink: 0;
+}
+
+.mini-guide-item.now-playing .mini-guide-status-badge {
+    display: inline-block;
 }
 
 /* ===================================================================
@@ -1939,8 +2002,8 @@ html, body {
 
 .playlist-card {
     position: relative;
-    background: linear-gradient(180deg, rgba(20, 56, 110, 0.75) 0%, rgba(8, 26, 56, 0.9) 100%);
-    border: 1.5px solid rgba(140, 195, 255, 0.35);
+    background: linear-gradient(180deg, rgba(16, 44, 88, 0.75) 0%, rgba(7, 21, 46, 0.88) 100%);
+    border: 1.5px solid rgba(140, 195, 255, 0.22);
     border-radius: 14px;
     padding: 13px 16px;
     display: flex;
@@ -1950,7 +2013,7 @@ html, body {
     outline: none;
     user-select: none;
     transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 3px 8px rgba(0, 0, 0, 0.45);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 3px 8px rgba(0, 0, 0, 0.35);
     overflow: hidden;
 }
 
@@ -1961,46 +2024,49 @@ html, body {
     left: 0;
     width: 100%;
     height: 48%;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.02) 100%);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.02) 100%);
     border-radius: 13px 13px 0 0;
     pointer-events: none;
 }
 
+/* Subtle indicator for currently tuned playlist when NOT focused */
+.playlist-card.is-current {
+    background: linear-gradient(180deg, rgba(14, 50, 95, 0.75) 0%, rgba(6, 25, 52, 0.88) 100%);
+    border-color: rgba(74, 222, 128, 0.35);
+}
+
+/* Focused / Hovered - THIS is the option you are targeting! */
 .playlist-card:hover,
 .playlist-card.focused {
-    border-color: #00d2ff;
-    background: linear-gradient(180deg, rgba(32, 105, 192, 0.85) 0%, rgba(14, 48, 100, 0.95) 100%);
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.65), 0 0 20px rgba(0, 210, 255, 0.55), 0 4px 12px rgba(0, 0, 0, 0.6);
-    transform: translateY(-2px);
-}
-
-.playlist-card.active {
-    border-color: #4ade80;
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 0 16px rgba(74, 222, 128, 0.45), 0 3px 8px rgba(0, 0, 0, 0.4);
-}
-
-.playlist-card.active.focused,
-.playlist-card.active:hover {
-    border-color: #7efc86;
-    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.75), 0 0 22px rgba(74, 222, 128, 0.7), 0 4px 14px rgba(0, 0, 0, 0.6);
+    border-color: #00d2ff !important;
+    background: linear-gradient(180deg, rgba(30, 95, 185, 0.9) 0%, rgba(12, 42, 92, 0.98) 100%) !important;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.65), 0 0 22px rgba(0, 210, 255, 0.6), 0 4px 14px rgba(0, 0, 0, 0.6) !important;
     transform: translateY(-2px);
 }
 
 .playlist-flag-bubble {
-    width: 46px;
-    height: 46px;
+    width: 48px;
+    height: 48px;
     flex-shrink: 0;
     border-radius: 50%;
     background: radial-gradient(circle at 35% 30%, #ffffff 0%, #cae3f7 40%, #5b8dbd 100%);
-    border: 1.5px solid rgba(255, 255, 255, 0.85);
+    border: 2px solid rgba(255, 255, 255, 0.85);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 2px 3px rgba(255, 255, 255, 0.9);
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+}
+
+.playlist-flag-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .playlist-flag-icon {
-    font-size: 24px;
+    font-size: 20px;
+    font-weight: 800;
     filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
 }
 
@@ -2009,7 +2075,7 @@ html, body {
     flex-direction: column;
     flex: 1;
     min-width: 0;
-    gap: 3px;
+    gap: 4px;
 }
 
 .playlist-card-title-row {
@@ -2027,37 +2093,62 @@ html, body {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
-.playlist-active-badge {
+.playlist-card-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.playlist-current-tag {
+    display: inline-flex;
+    align-items: center;
     font-size: 10px;
     font-weight: 800;
-    letter-spacing: 1px;
+    letter-spacing: 0.8px;
+    padding: 2.5px 7px;
+    border-radius: 5px;
+    background: rgba(14, 52, 38, 0.85);
+    color: #6ee7b7;
+    border: 1px solid rgba(110, 231, 183, 0.45);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.25);
+    text-transform: uppercase;
+}
+
+.playlist-action-badge {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
     padding: 3px 9px;
     border-radius: 6px;
     text-transform: uppercase;
     transition: all 0.2s ease;
 }
 
-.playlist-card.active .playlist-active-badge {
-    background: linear-gradient(180deg, #5eead4 0%, #14b8a6 50%, #0f766e 100%);
-    color: #032b26;
-    border: 1px solid #99f6e4;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
-    box-shadow: 0 0 10px rgba(45, 212, 191, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.8);
-}
-
-.playlist-card:not(.active) .playlist-active-badge {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
-    color: #aed1f5;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
-}
-
-.playlist-card.focused:not(.active) .playlist-active-badge {
+/* When focused to switch (the target option!) */
+.playlist-action-badge.badge-select-active {
     background: linear-gradient(180deg, #ffd752 0%, #f5a623 50%, #b45309 100%);
-    color: #2e1100;
-    border: 1px solid #fef08a;
+    color: #240d00;
+    border: 1px solid #fff08a;
+    font-weight: 800;
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
-    box-shadow: 0 0 10px rgba(245, 166, 35, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+    box-shadow: 0 0 12px rgba(245, 166, 35, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+}
+
+/* When not focused / idle */
+.playlist-action-badge.badge-select-idle {
+    background: rgba(255, 255, 255, 0.1);
+    color: #bad7f5;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+/* When it is the currently playing playlist */
+.playlist-action-badge.badge-current {
+    background: rgba(30, 80, 140, 0.5);
+    color: #aed1f5;
+    border: 1px solid rgba(140, 195, 255, 0.3);
 }
 
 .playlist-desc {
