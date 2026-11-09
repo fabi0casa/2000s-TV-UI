@@ -938,7 +938,7 @@ class RetroTVController {
             const currentSlot = hasRealEpg && ch.schedule[this.guideSelectedSlotIndex] ? ch.schedule[this.guideSelectedSlotIndex] : null;
 
             if (currentSlot) {
-                if (headlineEl) headlineEl.innerText = `${ch.id} - ${ch.name ? ch.name.toUpperCase() : ch.code} | ${currentSlot.title}`;
+                if (headlineEl) headlineEl.innerText = `${ch.id} - ${ch.name ? ch.name.toUpperCase() : ch.code}`;
                 if (synopsisEl) synopsisEl.innerText = currentSlot.description || `Transmissão ao vivo do canal ${ch.name}.`;
                 if (timeslotEl) timeslotEl.innerText = currentSlot.timeSlot || '--:-- - --:--';
                 if (ratingEl) ratingEl.innerText = currentSlot.rating || 'LIVRE';
