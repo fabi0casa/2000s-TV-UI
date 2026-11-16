@@ -13,8 +13,7 @@ const usedIconNames = [
     'volume-med.png',
     'volume-min.png',
     'volume-zero.png',
-    'tv.png',
-    'icon.png'
+    'tv.png'
 ];
 
 const icons = {};
@@ -65,11 +64,7 @@ html = html.replace(
     scriptsToInline
 );
 
-// Update icon paths in appJs if any
-for (const [name, dataUri] of Object.entries(icons)) {
-    html = html.split(`'icons/${name}'`).join(`'${dataUri}'`);
-    html = html.split(`"icons/${name}"`).join(`"${dataUri}"`);
-}
+// Icon paths are accessed via window.__AQUANET_ICONS or already replaced in HTML tags
 
 // Export bundledHtml.js
 const bundledJsContent = `// Auto-generated bundled HTML for React Native WebView

@@ -5,8 +5,6 @@ import {
   StatusBar,
   BackHandler,
   Platform,
-  TVEventHandler,
-  useTVEventHandler,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -59,6 +57,7 @@ export default function App() {
   };
 
   // 3. Android TV Real Remote Control Handler (D-Pad, Select, Colors, Play/Pause)
+  const useTVEventHandler = React.useTVEventHandler || (Platform.isTV ? null : null);
   if (typeof useTVEventHandler === 'function') {
     useTVEventHandler((evt) => {
       if (!evt || !evt.eventType) return;
