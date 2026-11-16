@@ -198,7 +198,7 @@
                     <div class="epg-header-left">
                         <!-- Aquanet TV Logo -->
                         <div class="cyclone-logo" title="Aquanet TV">
-                            <img src="icons/aquanet-nosignal-1.png" alt="Aquanet Logo" class="epg-logo-img">
+                            <img src="icons/aquanet-nosignal.png" alt="Aquanet Logo" class="epg-logo-img">
                         </div>
                         <div class="epg-header-titles">
                             <span class="epg-network-brand">AQUANET TV</span>
@@ -315,80 +315,131 @@
     </div>
 
     <!-- ============================================================
-         FLOATING 2000s SATELLITE REMOTE CONTROL (For PC & Mobile)
+         GENERIC SATELLITE IPTV LOGIN MODAL (Frutiger Aero 2000s)
+         Supports: XTREAM CODES, EZHOMETECH API, FASTOCLOUD, M3U URL
          ============================================================ -->
-    <div id="remote-control" class="remote-control-panel">
-        <div class="remote-drag-bar" id="remote-header">
-            <span class="remote-brand-text">AQUANET • SAT 2009</span>
-            <button class="remote-toggle-btn" id="btn-minimize-remote" title="Minimizar">✕</button>
-        </div>
-
-        <!-- Power & Status Row -->
-        <div class="remote-power-row">
-            <button class="btn-remote-power" id="rc-power" title="Ligar / Desligar TV"><img id="rc-power-img" src="icons/power-unpressed.png" alt="Power"></button>
-            <div class="remote-led" id="rc-led"></div>
-            <button class="btn-remote-pill" id="rc-mute" style="width: 58px;" title="Mudo">MUTE</button>
-        </div>
-
-        <!-- Function Row: Guide, Info, Menu, Exit -->
-        <div class="remote-fn-row">
-            <button class="btn-remote-pill" id="rc-guide" title="Guia Completo">GUIDE</button>
-            <button class="btn-remote-pill" id="rc-info" title="Informações OSD">INFO</button>
-            <button class="btn-remote-pill" id="rc-menu" title="Mini Guia">MINI</button>
-            <button class="btn-remote-pill" id="rc-exit" title="Sair do Menu">EXIT</button>
-        </div>
-
-        <!-- Directional D-PAD -->
-        <div class="remote-dpad-container">
-            <button class="dpad-btn dpad-up" id="rc-up" title="Volume + / Cima">▲</button>
-            <button class="dpad-btn dpad-left" id="rc-left" title="Retroceder 10s / Canal Anterior">◀</button>
-            <button class="dpad-center-ok" id="rc-ok" title="OK / Play / Pause">OK</button>
-            <button class="dpad-btn dpad-right" id="rc-right" title="Avançar 10s / Próximo Canal">▶</button>
-            <button class="dpad-btn dpad-down" id="rc-down" title="Volume - / Baixo">▼</button>
-        </div>
-
-        <!-- Volume and Channel Rockers -->
-        <div class="remote-rockers-row">
-            <div class="rocker-box">
-                <button class="btn-rocker" id="rc-vol-up">+</button>
-                <span class="rocker-label">VOL</span>
-                <button class="btn-rocker" id="rc-vol-down">-</button>
+    <div id="modal-login" class="modal-satellite-login">
+        <div class="modal-header">
+            <div class="modal-header-brand">
+                <div class="skeuo-icon-small">
+                    <svg viewBox="0 0 40 40" width="30" height="30">
+                        <circle cx="20" cy="20" r="18" fill="url(#globeGrad)" />
+                        <path d="M 12 12 Q 18 10 24 14 Q 28 17 26 23 Q 22 28 16 26 Q 10 24 12 12 Z" fill="#43a047" opacity="0.85"/>
+                        <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
+                    </svg>
+                </div>
+                <div>
+                    <span class="modal-header-badge">SATELLITE ACCESS • RECEIVER SETUP</span>
+                    <h3 class="modal-login-title">Sintonizador de Satélite IPTV</h3>
+                </div>
             </div>
-            <div class="rocker-box">
-                <button class="btn-rocker" id="rc-ch-up" title="Canal + (CH +)">+</button>
-                <span class="rocker-label">CH</span>
-                <button class="btn-rocker" id="rc-ch-down" title="Canal - (CH -)">-</button>
+            <div class="modal-login-clock" id="modal-login-clock">--:--</div>
+        </div>
+
+        <p class="modal-login-intro">
+            Selecione o provedor de transmissão e insira suas credenciais para sintonizar a grade de canais:
+        </p>
+
+        <!-- Provider Selection Tabs -->
+        <div class="login-provider-tabs">
+            <button type="button" class="login-tab-btn active" data-tab="xtream">
+                <span class="tab-indicator">●</span> XTREAM CODES
+            </button>
+            <button type="button" class="login-tab-btn" data-tab="ezhome">
+                <span class="tab-indicator">●</span> EZHOMETECH
+            </button>
+            <button type="button" class="login-tab-btn" data-tab="fasto">
+                <span class="tab-indicator">●</span> FASTOCLOUD
+            </button>
+            <button type="button" class="login-tab-btn" data-tab="m3u">
+                <span class="tab-indicator">●</span> LISTA M3U URL
+            </button>
+        </div>
+
+        <!-- Tab 1: Xtream Codes Form -->
+        <div class="login-tab-panel active" id="tab-panel-xtream">
+            <div class="login-field-group">
+                <label for="xtream-server">Servidor / Host (URL ou IP com Porta):</label>
+                <input type="text" id="xtream-server" placeholder="Ex: http://meu-provedor.com:8080" autocomplete="off" autocapitalize="none">
+            </div>
+            <div class="login-row-2col">
+                <div class="login-field-group">
+                    <label for="xtream-user">Usuário:</label>
+                    <input type="text" id="xtream-user" placeholder="Nome de usuário" autocomplete="off" autocapitalize="none">
+                </div>
+                <div class="login-field-group">
+                    <label for="xtream-pass">Senha:</label>
+                    <input type="password" id="xtream-pass" placeholder="••••••••" autocomplete="off">
+                </div>
             </div>
         </div>
 
-        <!-- 4 Color Buttons -->
-        <div class="remote-color-row">
-            <button class="btn-remote-color btn-color-red" id="rc-red" title="Vermelho: Mutar SFX / No Guia: Pág ▲ (-4)"></button>
-            <button class="btn-remote-color btn-color-green" id="rc-green" title="Verde: Alternar Tubo CRT / No Guia: Pág ▼ (+4)"></button>
-            <button class="btn-remote-color btn-color-yellow" id="rc-yellow" title="Amarelo: Opções de TV / No Guia: Alternar Playlist"></button>
-            <button class="btn-remote-color btn-color-blue" id="rc-blue" title="Azul: Canal Aleatório / No Guia: Fechar (Exit)"></button>
+        <!-- Tab 2: EzhomeTech Form -->
+        <div class="login-tab-panel" id="tab-panel-ezhome">
+            <div class="login-field-group">
+                <label for="ezhome-server">Portal / Servidor EzhomeTech:</label>
+                <input type="text" id="ezhome-server" placeholder="Ex: http://portal.ezserver.tv:8000" autocomplete="off" autocapitalize="none">
+            </div>
+            <div class="login-row-2col">
+                <div class="login-field-group">
+                    <label for="ezhome-user">Usuário / ID:</label>
+                    <input type="text" id="ezhome-user" placeholder="Usuário ou MAC" autocomplete="off" autocapitalize="none">
+                </div>
+                <div class="login-field-group">
+                    <label for="ezhome-pass">Senha / Token:</label>
+                    <input type="password" id="ezhome-pass" placeholder="••••••••" autocomplete="off">
+                </div>
+            </div>
         </div>
 
-        <!-- Numeric Keypad Grid -->
-        <div class="remote-numpad-grid">
-            <button class="btn-num" data-num="1">1</button>
-            <button class="btn-num" data-num="2">2</button>
-            <button class="btn-num" data-num="3">3</button>
-            <button class="btn-num" data-num="4">4</button>
-            <button class="btn-num" data-num="5">5</button>
-            <button class="btn-num" data-num="6">6</button>
-            <button class="btn-num" data-num="7">7</button>
-            <button class="btn-num" data-num="8">8</button>
-            <button class="btn-num" data-num="9">9</button>
-            <button class="btn-num" id="rc-prev" style="font-size: 13px;">FLASH</button>
-            <button class="btn-num" data-num="0">0</button>
-            <button class="btn-num" id="rc-enter" style="font-size: 13px;">ENTER</button>
+        <!-- Tab 3: FastoCloud Form -->
+        <div class="login-tab-panel" id="tab-panel-fasto">
+            <div class="login-field-group">
+                <label for="fasto-server">Host FastoCloud:</label>
+                <input type="text" id="fasto-server" placeholder="Ex: http://fastocloud.me:8000" autocomplete="off" autocapitalize="none">
+            </div>
+            <div class="login-row-2col">
+                <div class="login-field-group">
+                    <label for="fasto-user">Usuário / Token:</label>
+                    <input type="text" id="fasto-user" placeholder="Usuário ou token" autocomplete="off" autocapitalize="none">
+                </div>
+                <div class="login-field-group">
+                    <label for="fasto-pass">Senha:</label>
+                    <input type="password" id="fasto-pass" placeholder="••••••••" autocomplete="off">
+                </div>
+            </div>
         </div>
-    </div>
 
-    <!-- Floating launcher button to restore remote control when closed -->
-    <div class="floating-remote-launcher hidden" id="floating-remote-btn" style="display: none;" title="Abrir Controle Remoto">
-        <span><img src="icons/aquanet-nosignal-1.png" alt="Abrir Controle Remoto" class="floating-remote-logo"></span>
+        <!-- Tab 4: M3U URL Form (Sem Conta) -->
+        <div class="login-tab-panel" id="tab-panel-m3u">
+            <div class="login-field-group">
+                <label for="m3u-url">URL da Lista M3U / M3U8 (Sem necessidade de login):</label>
+                <input type="text" id="m3u-url" placeholder="Ex: https://iptv-org.github.io/iptv/index.m3u" autocomplete="off" autocapitalize="none">
+            </div>
+            <div class="login-field-group">
+                <label for="m3u-epg-url">URL do Guia EPG (XMLTV - Opcional):</label>
+                <input type="text" id="m3u-epg-url" placeholder="Ex: https://iptv-org.github.io/epg/guides/br.xml" autocomplete="off" autocapitalize="none">
+            </div>
+        </div>
+
+        <!-- Status Message & Loading Orb -->
+        <div id="login-status-box" class="login-status-box hidden">
+            <span class="status-orb" id="login-status-orb"></span>
+            <span id="login-status-text" class="login-status-text">Conectando...</span>
+        </div>
+
+        <!-- Actions -->
+        <div class="modal-actions login-actions">
+            <button type="button" class="btn-modal btn-modal-demo" id="btn-login-demo" title="Carregar canais abertos e públicos de teste">
+                📺 Testar Canais Demo
+            </button>
+            <button type="button" class="btn-modal btn-modal-cancel hidden" id="btn-login-cancel">
+                Voltar à TV
+            </button>
+            <button type="button" class="btn-modal btn-modal-connect" id="btn-login-connect">
+                🛰️ Sintonizar Satélite
+            </button>
+        </div>
     </div>
 
     <!-- Custom IPTV / Video / YouTube URL Modal -->
@@ -409,6 +460,11 @@
             <div class="quick-tags">
                 <button type="button" class="btn-quick-tag" data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ">Rick Astley - Never Gonna Give You Up (Rick Roll)</button>
             </div>
+        </div>
+        <div class="modal-provider-switch-box">
+            <button type="button" class="btn-switch-provider" id="btn-open-login-settings">
+                🔄 Trocar Servidor IPTV / Configurar Conta (Logout)
+            </button>
         </div>
         <div class="modal-actions">
             <button class="btn-modal btn-modal-cancel" id="btn-cancel-stream">Cancelar</button>

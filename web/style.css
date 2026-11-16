@@ -2605,3 +2605,302 @@ html, body {
         font-size: 9px;
     }
 }
+
+/* ===================================================================
+   GENERIC SATELLITE IPTV LOGIN MODAL (Frutiger Aero 2000s)
+   =================================================================== */
+.remote-control-panel,
+.floating-remote-launcher {
+    display: none !important;
+}
+
+.modal-satellite-login {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 92%;
+    max-width: 600px;
+    max-height: 90vh;
+    background: linear-gradient(180deg, #184282 0%, #113468 45%, #0a234a 52%, #0e2d5c 100%);
+    border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 20px;
+    padding: 22px 26px;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9), inset 0 2px 4px rgba(255, 255, 255, 0.75), inset 0 -2px 4px rgba(0, 0, 0, 0.6);
+    z-index: 150;
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.modal-satellite-login::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 42%;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.03) 100%);
+    border-radius: 18px 18px 0 0;
+    pointer-events: none;
+}
+
+.modal-satellite-login.active {
+    display: flex;
+    animation: aeroModalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.modal-header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.skeuo-icon-small {
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
+}
+
+.modal-login-title {
+    color: #7ec5ff;
+    font-size: 19px;
+    margin: 3px 0 0 0;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8), 0 0 10px rgba(100, 181, 246, 0.4);
+}
+
+.modal-login-clock {
+    margin-left: auto;
+    background: #04101e;
+    border: 1.5px solid #1a3c68;
+    border-radius: 6px;
+    padding: 4px 10px;
+    color: #38ef7d;
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-shadow: 0 0 6px rgba(56, 239, 125, 0.7);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.modal-login-intro {
+    font-size: 13px;
+    color: #bad7f5;
+    margin: 0;
+    line-height: 1.45;
+}
+
+.login-provider-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 2px;
+}
+
+.login-tab-btn {
+    flex: 1;
+    min-width: 120px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #b0cfee;
+    background: linear-gradient(180deg, #1b3860 0%, #122847 48%, #0b1a32 52%, #132b4d 100%);
+    border: 1.5px solid rgba(130, 180, 240, 0.25);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 2px 4px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+}
+
+.login-tab-btn:hover {
+    background: linear-gradient(180deg, #244b80 0%, #17355e 48%, #0f2444 52%, #1a3b68 100%);
+    border-color: rgba(160, 210, 255, 0.5);
+    color: #ffffff;
+}
+
+.login-tab-btn.active {
+    background: linear-gradient(180deg, #2e6db5 0%, #1b4d8a 48%, #133968 52%, #1c5292 100%);
+    border-color: #64b5f6;
+    color: #ffffff;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.7), 0 0 10px rgba(100, 181, 246, 0.4), 0 2px 5px rgba(0, 0, 0, 0.4);
+}
+
+.tab-indicator {
+    font-size: 10px;
+    color: #5a7696;
+}
+
+.login-tab-btn.active .tab-indicator {
+    color: #38ef7d;
+    text-shadow: 0 0 6px #38ef7d;
+}
+
+.login-tab-panel {
+    display: none;
+    flex-direction: column;
+    gap: 11px;
+}
+
+.login-tab-panel.active {
+    display: flex;
+}
+
+.login-field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.login-field-group label {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #9bc5ee;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.login-field-group input {
+    width: 100%;
+    box-sizing: border-box;
+    background: linear-gradient(180deg, #07152b 0%, #0c203d 100%);
+    border: 1.5px solid rgba(100, 160, 230, 0.35);
+    border-radius: 8px;
+    color: #ffffff;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.login-field-group input:focus {
+    border-color: #64b5f6;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 10px rgba(100, 181, 246, 0.5);
+}
+
+.login-row-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.login-status-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+    background: rgba(5, 18, 38, 0.7);
+    border: 1px solid rgba(100, 180, 255, 0.25);
+    border-radius: 8px;
+    margin-top: 2px;
+}
+
+.status-orb {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #fbbf24;
+    box-shadow: 0 0 8px #fbbf24;
+    flex-shrink: 0;
+}
+
+.status-orb.connecting {
+    background: #38bdf8;
+    box-shadow: 0 0 8px #38bdf8;
+    animation: orbPulse 1s infinite alternate;
+}
+
+.status-orb.error {
+    background: #ef4444;
+    box-shadow: 0 0 8px #ef4444;
+}
+
+.status-orb.success {
+    background: #22c55e;
+    box-shadow: 0 0 8px #22c55e;
+}
+
+@keyframes orbPulse {
+    from { opacity: 0.5; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1.15); }
+}
+
+.login-status-text {
+    font-size: 12px;
+    color: #d0e7ff;
+}
+
+.login-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.btn-modal-demo {
+    background: linear-gradient(180deg, #3d587c 0%, #253d5d 48%, #1b2f4a 52%, #263e60 100%);
+    border: 1.5px solid rgba(180, 210, 250, 0.35);
+    color: #d6e8fc;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.btn-modal-demo:hover {
+    background: linear-gradient(180deg, #4d6d99 0%, #324e75 48%, #243c5e 52%, #324e76 100%);
+    color: #ffffff;
+}
+
+.btn-modal-connect {
+    background: linear-gradient(180deg, #3ddc84 0%, #22b865 48%, #16934e 52%, #1eab5c 100%);
+    border: 1.5px solid #0f6334;
+    color: #042611;
+    font-weight: 800;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+.btn-modal-connect:hover {
+    background: linear-gradient(180deg, #51e695 0%, #2ed476 48%, #1ba859 52%, #27c36a 100%);
+    transform: translateY(-1px);
+    box-shadow: inset 0 1px 2px #ffffff, 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+.btn-modal-connect:active {
+    transform: translateY(1px);
+}
+
+.modal-provider-switch-box {
+    margin: 4px 0;
+}
+
+.btn-switch-provider {
+    width: 100%;
+    padding: 8px 12px;
+    background: linear-gradient(180deg, #1f3b60 0%, #152945 100%);
+    border: 1px dashed rgba(100, 180, 255, 0.4);
+    border-radius: 8px;
+    color: #a8d3ff;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-switch-provider:hover {
+    background: linear-gradient(180deg, #2b4e7e 0%, #1d395e 100%);
+    color: #ffffff;
+    border-color: #64b5f6;
+}
+

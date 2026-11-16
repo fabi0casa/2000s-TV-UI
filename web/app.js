@@ -51,10 +51,11 @@ class RetroTVController {
         this.osdVolumeBox = document.getElementById('osd-volume-box');
         this.volBarFill = document.getElementById('vol-bar-fill');
         this.volText = document.getElementById('vol-text');
-        this.remoteControl = document.getElementById('remote-control');
-        this.floatingRemoteBtn = document.getElementById('floating-remote-btn');
+        this.remoteControl = document.getElementById('remote-control') || null;
+        this.floatingRemoteBtn = document.getElementById('floating-remote-btn') || null;
         this.modalStream = document.getElementById('modal-stream');
-        this.rcLed = document.getElementById('rc-led');
+        this.modalLogin = document.getElementById('modal-login') || null;
+        this.rcLed = document.getElementById('rc-led') || null;
         this.youtubeContainer = document.getElementById('youtube-container');
         this.osdMediaBadge = document.getElementById('osd-media-badge');
         this.osdMediaIcon = document.getElementById('osd-media-icon');
@@ -125,10 +126,12 @@ class RetroTVController {
         this.bindOSDInteractions();
         this.bindTouchControls();
         this.makeRemoteDraggable();
+        this.bindLoginModal();
+        this.bindRealRemoteListener();
 
         // Unlock audio on first interaction
         const unlockAudio = () => {
-            window.retroAudio.init();
+            if (window.retroAudio) window.retroAudio.init();
             window.removeEventListener('click', unlockAudio);
             window.removeEventListener('keydown', unlockAudio);
             window.removeEventListener('touchstart', unlockAudio);
@@ -144,9 +147,8 @@ class RetroTVController {
         // Auto show banner at start
         this.showBanner(6000);
 
-        // Connect to API to fetch dynamic real-time channels and EPG exclusively from @/api
-        await this.syncWithApi();
-        setInterval(() => this.refreshEPG(), 60000);
+        // Connect to Generic IPTV Provider (Xtream Codes, EzhomeTech, FastoCloud, M3U)
+        await this.initGenericIPTV();
     }
 
     /**
@@ -243,6 +245,9 @@ class RetroTVController {
 
         const epgDateEl = document.getElementById('epg-date-label');
         if (epgDateEl) epgDateEl.innerText = `${dayStr} ${month}/${date}`;
+
+        const loginClockEl = document.getElementById('modal-login-clock');
+        if (loginClockEl) loginClockEl.innerText = `${hours}:${minutes} ${ampm.toUpperCase()}`;
 
         // Analog Clock hands in OSD 3D icon
         const hourHand = document.getElementById('clock-hour-hand');
@@ -1682,28 +1687,88 @@ class RetroTVController {
     }
 
     /**
-     * Keyboard Controller
+     * Keyboard & Real Remote Controller
      */
     bindKeyboard() {
         window.addEventListener('keydown', (e) => {
-            // Ignore keybindings if user is typing in input or textarea
+            // Ignore general keybindings if user is typing in input or textarea
             if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
                 if (e.key === 'Escape') {
-                    this.modalStream.classList.remove('active');
+                    if (this.modalStream && this.modalStream.classList.contains('active')) {
+                        this.modalStream.classList.remove('active');
+                    }
+                    if (this.modalLogin && this.modalLogin.classList.contains('active') && this.channels && this.channels.length > 1) {
+                        this.closeLoginModal();
+                    }
+                } else if (e.key === 'Enter') {
+                    if (e.target.closest('#modal-login')) {
+                        e.preventDefault();
+                        this.handleLoginConnect();
+                    }
                 }
                 return;
             }
 
-            // Spacebar: Play / Pause in media mode
-            if (e.code === 'Space' || e.key === ' ') {
+            // Real Remote & Android TV KeyCode Check
+            const code = e.keyCode || e.which || 0;
+
+            // Spacebar / Media PlayPause: Play / Pause in media mode
+            if (e.code === 'Space' || e.key === ' ' || code === 85 || code === 126 || code === 127) {
                 e.preventDefault();
                 this.handleOkPress();
                 return;
             }
 
-            // Numbers 0-9
+            // Android Hardware Volume keys
+            if (code === 24 || e.key === '+') {
+                e.preventDefault();
+                this.volumeUp();
+                return;
+            }
+            if (code === 25 || e.key === '-') {
+                e.preventDefault();
+                this.volumeDown();
+                return;
+            }
+            if (code === 164) {
+                e.preventDefault();
+                this.toggleMute();
+                return;
+            }
+
+            // Numbers 0-9 (Physical keyboard & Android TV numpad keys 7-16)
             if (e.key >= '0' && e.key <= '9') {
                 this.dialDigit(e.key);
+                return;
+            }
+            if (code >= 7 && code <= 16) {
+                this.dialDigit(String(code - 7));
+                return;
+            }
+
+            // Android TV Color Keys (F1-F4 or KeyCodes 183-186)
+            if (e.key === 'F1' || code === 183) {
+                e.preventDefault();
+                if (this.isGuideOpen) this.guideMoveVertical(-4);
+                else this.toggleSFXMute();
+                return;
+            }
+            if (e.key === 'F2' || code === 184) {
+                e.preventDefault();
+                if (this.isGuideOpen) this.guideMoveVertical(4);
+                else this.toggleCRT();
+                return;
+            }
+            if (e.key === 'F3' || code === 185) {
+                e.preventDefault();
+                if (this.isGuideOpen) this.handleGuideYellowAction();
+                else this.openCustomStreamModal();
+                return;
+            }
+            if (e.key === 'F4' || code === 186) {
+                e.preventDefault();
+                if (this.isGuideOpen) this.closeGuide();
+                else this.toggleMiniGuide();
                 return;
             }
 
@@ -1725,9 +1790,12 @@ class RetroTVController {
                     this.handleRightPress();
                     break;
                 case 'Enter':
+                case 'Select':
                     e.preventDefault();
                     if (this.dialDigits.length > 0) {
                         this.confirmDial();
+                    } else if (this.modalLogin && this.modalLogin.classList.contains('active')) {
+                        this.handleLoginConnect();
                     } else if (this.isPlaylistModalOpen) {
                         this.confirmPlaylistSelection();
                     } else if (this.isGuideOpen) {
@@ -1739,10 +1807,13 @@ class RetroTVController {
                     }
                     break;
                 case 'Escape':
+                case 'Back':
                     e.preventDefault();
-                    if (this.isPlaylistModalOpen) {
+                    if (this.modalLogin && this.modalLogin.classList.contains('active')) {
+                        if (this.channels && this.channels.length > 1) this.closeLoginModal();
+                    } else if (this.isPlaylistModalOpen) {
                         this.closePlaylistModal();
-                    } else if (this.modalStream.classList.contains('active')) {
+                    } else if (this.modalStream && this.modalStream.classList.contains('active')) {
                         this.modalStream.classList.remove('active');
                     } else if (this.isGuideOpen) {
                         this.closeGuide();
@@ -1775,10 +1846,13 @@ class RetroTVController {
                     break;
                 case 'g':
                 case 'G':
+                case 'Guide':
+                case 'EPG':
                     this.toggleGuide();
                     break;
                 case 'i':
                 case 'I':
+                case 'Info':
                     this.toggleBanner();
                     break;
                 case 'm':
@@ -1835,6 +1909,31 @@ class RetroTVController {
                     e.preventDefault();
                     if (this.isGuideOpen) this.guideMoveVertical(4);
                     break;
+                default:
+                    // Fallback para keycodes do D-Pad Android (19-23)
+                    if (code === 19) { e.preventDefault(); this.handleUpPress(); }
+                    else if (code === 20) { e.preventDefault(); this.handleDownPress(); }
+                    else if (code === 21) { e.preventDefault(); this.handleLeftPress(); }
+                    else if (code === 22) { e.preventDefault(); this.handleRightPress(); }
+                    else if (code === 23 || code === 66) {
+                        e.preventDefault();
+                        if (this.dialDigits.length > 0) this.confirmDial();
+                        else if (this.isGuideOpen) this.guideSelectCurrent();
+                        else if (this.isMiniGuideOpen) this.miniGuideSelectCurrent();
+                        else this.handleOkPress();
+                    } else if (code === 4) {
+                        e.preventDefault();
+                        if (this.isGuideOpen) this.closeGuide();
+                        else if (this.isMiniGuideOpen) this.closeMiniGuide();
+                        else this.hideBanner();
+                    } else if (code === 166) {
+                        e.preventDefault();
+                        this.channelUp();
+                    } else if (code === 167) {
+                        e.preventDefault();
+                        this.channelDown();
+                    }
+                    break;
             }
         });
     }
@@ -1843,6 +1942,7 @@ class RetroTVController {
      * Bind 2000s Satellite Remote Control Panel
      */
     bindRemote() {
+        if (!this.remoteControl) return;
         // Remote LED blinking while pressing any remote button
         if (this.remoteControl) {
             this.remoteControl.addEventListener('pointerdown', (e) => {
@@ -2858,108 +2958,421 @@ class RetroTVController {
     }
 
     /**
-     * Mobile & Touch gestures
+     * Mobile Landscape & Touch Gestures
      */
     bindTouchControls() {
-        let touchStartY = 0;
-        let touchStartX = 0;
+        const target = this.tvCanvas.parentElement || document.body;
+        let startX = 0;
+        let startY = 0;
+        let startTime = 0;
+        let lastTapTime = 0;
+        let isSwiping = false;
 
-        this.tvCanvas.parentElement.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].clientY;
-            touchStartX = e.touches[0].clientX;
+        target.addEventListener('touchstart', (e) => {
+            // Ignore touch inside interactive modals
+            if (e.target.closest('#modal-login') || e.target.closest('#modal-stream') || e.target.closest('#modal-playlist')) {
+                return;
+            }
+            if (e.touches.length === 1) {
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                startTime = Date.now();
+                isSwiping = true;
+            }
         }, { passive: true });
 
-        this.tvCanvas.parentElement.addEventListener('touchend', (e) => {
-            const diffY = touchStartY - e.changedTouches[0].clientY;
-            const diffX = touchStartX - e.changedTouches[0].clientX;
-
-            if (Math.abs(diffY) > 50 && Math.abs(diffY) > Math.abs(diffX)) {
-                if (diffY > 0) this.handleUpPress();
-                else this.handleDownPress();
-            } else if (Math.abs(diffX) > 50 && Math.abs(diffX) > Math.abs(diffY)) {
-                if (diffX > 0) this.handleRightPress();
-                else this.handleLeftPress();
-            } else if (Math.abs(diffY) < 15 && Math.abs(diffX) < 15) {
-                // Short tap -> OK action (open banner, tune or hide)
-                this.handleOkPress();
+        target.addEventListener('touchmove', (e) => {
+            if (!isSwiping || e.touches.length !== 1) return;
+            const deltaY = Math.abs(e.touches[0].clientY - startY);
+            const deltaX = Math.abs(e.touches[0].clientX - startX);
+            if (deltaY > 10 || deltaX > 10) {
+                if (e.cancelable) e.preventDefault();
             }
-        });
+        }, { passive: false });
+
+        target.addEventListener('touchend', (e) => {
+            if (!isSwiping) return;
+            isSwiping = false;
+
+            const touch = e.changedTouches[0];
+            const endX = touch.clientX;
+            const endY = touch.clientY;
+            const diffX = endX - startX;
+            const diffY = endY - startY;
+            const absX = Math.abs(diffX);
+            const absY = Math.abs(diffY);
+            const duration = Date.now() - startTime;
+            const screenW = window.innerWidth;
+
+            // Swipe from left edge (< 45px) opens Mini Guide
+            if (startX < 45 && diffX > 60 && absX > absY) {
+                if (!this.isMiniGuideOpen) this.openMiniGuide();
+                return;
+            }
+
+            // Horizontal Swipe (Change Channel or Navigate Banner/Guide)
+            if (absX > 50 && absX > absY) {
+                if (diffX > 0) {
+                    if (this.isGuideOpen) this.handleRightPress();
+                    else this.handleRightPress();
+                } else {
+                    if (this.isGuideOpen) this.handleLeftPress();
+                    else this.handleLeftPress();
+                }
+                return;
+            }
+
+            // Vertical Swipe
+            if (absY > 40 && absY > absX) {
+                const isLeftSide = startX < (screenW * 0.45);
+                if (isLeftSide && !this.isGuideOpen && !this.isMiniGuideOpen) {
+                    // Left half swipe controls Volume
+                    if (diffY < 0) this.volumeUp();
+                    else this.volumeDown();
+                } else {
+                    // Right half swipe controls Channel / Guide Navigation
+                    if (diffY < 0) this.handleUpPress();
+                    else this.handleDownPress();
+                }
+                return;
+            }
+
+            // Single and Double Tap detection
+            if (absX < 20 && absY < 20 && duration < 350) {
+                const now = Date.now();
+                if (now - lastTapTime < 320) {
+                    // Double Tap -> Toggle CRT effect
+                    this.toggleCRT();
+                    lastTapTime = 0;
+                } else {
+                    lastTapTime = now;
+                    // Single Tap -> Toggle Banner / Confirm Selection
+                    setTimeout(() => {
+                        if (lastTapTime === now) {
+                            if (this.isGuideOpen) {
+                                this.guideSelectCurrent();
+                            } else if (this.isMiniGuideOpen) {
+                                this.miniGuideSelectCurrent();
+                            } else {
+                                this.toggleBanner();
+                            }
+                        }
+                    }, 250);
+                }
+            }
+        }, { passive: true });
     }
 
     /**
-     * Sincronização em tempo real com a API de IPTV na porta 1414
-     * Todos os canais de transmissão são servidos EXCLUSIVAMENTE via API.
+     * Real Remote Event Dispatcher (Android TV & Native Bridge)
      */
-    async syncWithApi(playlistOverride = null, forceTuneFirst = false) {
-        if (playlistOverride) {
-            this.currentPlaylist = playlistOverride;
+    bindRealRemoteListener() {
+        const onMsg = (event) => {
+            try {
+                let payload = event.data;
+                if (typeof payload === 'string') {
+                    payload = JSON.parse(payload);
+                }
+                if (payload && payload.type === 'KEY_EVENT') {
+                    this.handleRealRemoteKey(payload.key, payload.keyCode);
+                }
+            } catch (e) {}
+        };
+        window.addEventListener('message', onMsg);
+        document.addEventListener('message', onMsg);
+    }
+
+    handleRealRemoteKey(key, keyCode) {
+        const k = (key || '').toLowerCase();
+        const code = Number(keyCode) || 0;
+
+        if (k === 'up' || k === 'dpad_up' || code === 19 || code === 38) {
+            this.handleUpPress();
+        } else if (k === 'down' || k === 'dpad_down' || code === 20 || code === 40) {
+            this.handleDownPress();
+        } else if (k === 'left' || k === 'dpad_left' || code === 21 || code === 37) {
+            this.handleLeftPress();
+        } else if (k === 'right' || k === 'dpad_right' || code === 22 || code === 39) {
+            this.handleRightPress();
+        } else if (k === 'select' || k === 'enter' || k === 'ok' || k === 'dpad_center' || code === 23 || code === 66 || code === 13) {
+            if (this.dialDigits.length > 0) {
+                this.confirmDial();
+            } else if (this.modalLogin && this.modalLogin.classList.contains('active')) {
+                this.handleLoginConnect();
+            } else if (this.isPlaylistModalOpen) {
+                this.confirmPlaylistSelection();
+            } else if (this.isGuideOpen) {
+                this.guideSelectCurrent();
+            } else if (this.isMiniGuideOpen) {
+                this.miniGuideSelectCurrent();
+            } else {
+                this.handleOkPress();
+            }
+        } else if (k === 'back' || k === 'escape' || code === 4 || code === 27) {
+            if (this.modalLogin && this.modalLogin.classList.contains('active')) {
+                if (this.channels && this.channels.length > 1) this.closeLoginModal();
+            } else if (this.isPlaylistModalOpen) {
+                this.closePlaylistModal();
+            } else if (this.modalStream && this.modalStream.classList.contains('active')) {
+                this.modalStream.classList.remove('active');
+            } else if (this.isGuideOpen) {
+                this.closeGuide();
+            } else if (this.isMiniGuideOpen) {
+                this.closeMiniGuide();
+            } else {
+                this.hideBanner();
+            }
+        } else if (k === 'channelup' || k === 'channel_up' || code === 166) {
+            this.channelUp();
+        } else if (k === 'channeldown' || k === 'channel_down' || code === 167) {
+            this.channelDown();
+        } else if (k === 'volumeup' || k === 'volume_up' || code === 24) {
+            this.volumeUp();
+        } else if (k === 'volumedown' || k === 'volume_down' || code === 25) {
+            this.volumeDown();
+        } else if (k === 'mute' || code === 164) {
+            this.toggleMute();
+        } else if (k === 'play' || k === 'pause' || k === 'playpause' || code === 85 || code === 126 || code === 127) {
+            this.handleOkPress();
+        } else if (k === 'fastforward' || code === 90) {
+            this.handleRightPress();
+        } else if (k === 'rewind' || code === 89) {
+            this.handleLeftPress();
+        } else if (k === 'red' || code === 183) {
+            if (this.isGuideOpen) this.guideMoveVertical(-4);
+            else this.toggleSFXMute();
+        } else if (k === 'green' || code === 184) {
+            if (this.isGuideOpen) this.guideMoveVertical(4);
+            else this.toggleCRT();
+        } else if (k === 'yellow' || code === 185) {
+            if (this.isGuideOpen) this.handleGuideYellowAction();
+            else this.openCustomStreamModal();
+        } else if (k === 'blue' || code === 186) {
+            if (this.isGuideOpen) this.closeGuide();
+            else this.toggleMiniGuide();
+        } else if (k === 'info' || code === 165) {
+            this.toggleBanner();
+        } else if (k === 'guide' || code === 172) {
+            this.toggleGuide();
+        } else if (/^[0-9]$/.test(k)) {
+            this.dialDigit(k);
+        } else if (code >= 7 && code <= 16) {
+            this.dialDigit(String(code - 7));
         }
-        const country = this.currentPlaylist; // 'br' or 'us'
-        const endpoint = (country === 'us') ? '/api/channels/us' : '/api/channels/br';
+    }
+
+    /**
+     * Generic Satellite IPTV Login Modal
+     */
+    bindLoginModal() {
+        this.modalLogin = document.getElementById('modal-login');
+        if (!this.modalLogin) return;
+
+        this.loginTabs = this.modalLogin.querySelectorAll('.login-tab-btn');
+        this.loginPanels = this.modalLogin.querySelectorAll('.login-tab-panel');
+        this.activeLoginTab = 'xtream';
+
+        this.loginTabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.dataset.tab;
+                this.switchLoginTab(tab);
+            });
+        });
+
+        const btnConnect = document.getElementById('btn-login-connect');
+        if (btnConnect) {
+            btnConnect.addEventListener('click', () => this.handleLoginConnect());
+        }
+
+        const btnDemo = document.getElementById('btn-login-demo');
+        if (btnDemo) {
+            btnDemo.addEventListener('click', () => this.handleLoginDemo());
+        }
+
+        const btnCancel = document.getElementById('btn-login-cancel');
+        if (btnCancel) {
+            btnCancel.addEventListener('click', () => this.closeLoginModal());
+        }
+
+        const btnOpenSettings = document.getElementById('btn-open-login-settings');
+        if (btnOpenSettings) {
+            btnOpenSettings.addEventListener('click', () => {
+                if (this.modalStream) this.modalStream.classList.remove('active');
+                this.openLoginModal();
+            });
+        }
+    }
+
+    switchLoginTab(tab) {
+        this.activeLoginTab = tab;
+        this.loginTabs.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        this.loginPanels.forEach(panel => {
+            panel.classList.toggle('active', panel.id === `tab-panel-${tab}`);
+        });
+        if (window.retroAudio) window.retroAudio.playBeep('cursor');
+    }
+
+    showLoginStatus(msg, type = 'info') {
+        const box = document.getElementById('login-status-box');
+        const orb = document.getElementById('login-status-orb');
+        const text = document.getElementById('login-status-text');
+        if (!box || !orb || !text) return;
+
+        box.classList.remove('hidden');
+        orb.className = 'status-orb ' + type;
+        text.innerText = msg;
+    }
+
+    openLoginModal(error = null) {
+        if (!this.modalLogin) this.modalLogin = document.getElementById('modal-login');
+        if (!this.modalLogin) return;
+
+        this.modalLogin.classList.add('active');
+
+        // Populate fields with saved config if available
+        const saved = window.GenericIPTVManager ? window.GenericIPTVManager.getSavedConfig() : null;
+        if (saved) {
+            if (saved.type) this.switchLoginTab(saved.type);
+            if (saved.server) {
+                const sEl = document.getElementById(`${saved.type}-server`);
+                if (sEl) sEl.value = saved.server;
+            }
+            if (saved.username) {
+                const uEl = document.getElementById(`${saved.type}-user`);
+                if (uEl) uEl.value = saved.username;
+            }
+            if (saved.m3uUrl) {
+                const mEl = document.getElementById('m3u-url');
+                if (mEl) mEl.value = saved.m3uUrl;
+            }
+            if (saved.epgUrl) {
+                const eEl = document.getElementById('m3u-epg-url');
+                if (eEl) eEl.value = saved.epgUrl;
+            }
+        }
+
+        const btnCancel = document.getElementById('btn-login-cancel');
+        if (btnCancel) {
+            btnCancel.classList.toggle('hidden', !(this.channels && this.channels.length > 1));
+        }
+
+        if (error) {
+            this.showLoginStatus(error, 'error');
+        } else {
+            const box = document.getElementById('login-status-box');
+            if (box) box.classList.add('hidden');
+        }
+    }
+
+    closeLoginModal() {
+        if (this.modalLogin) this.modalLogin.classList.remove('active');
+    }
+
+    async handleLoginConnect() {
+        const tab = this.activeLoginTab;
+        let config = { type: tab };
+
+        if (tab === 'xtream') {
+            const server = document.getElementById('xtream-server')?.value?.trim();
+            const username = document.getElementById('xtream-user')?.value?.trim();
+            const password = document.getElementById('xtream-pass')?.value?.trim();
+            if (!server || !username || !password) {
+                this.showLoginStatus('Preencha servidor, usuário e senha do Xtream Codes.', 'error');
+                return;
+            }
+            config.server = server;
+            config.username = username;
+            config.password = password;
+        } else if (tab === 'ezhome') {
+            const server = document.getElementById('ezhome-server')?.value?.trim();
+            const username = document.getElementById('ezhome-user')?.value?.trim();
+            const password = document.getElementById('ezhome-pass')?.value?.trim();
+            if (!server || !username) {
+                this.showLoginStatus('Preencha o servidor e usuário/ID EzhomeTech.', 'error');
+                return;
+            }
+            config.server = server;
+            config.username = username;
+            config.password = password || '';
+        } else if (tab === 'fasto') {
+            const server = document.getElementById('fasto-server')?.value?.trim();
+            const username = document.getElementById('fasto-user')?.value?.trim();
+            const password = document.getElementById('fasto-pass')?.value?.trim();
+            if (!server) {
+                this.showLoginStatus('Preencha o host do servidor FastoCloud.', 'error');
+                return;
+            }
+            config.server = server;
+            config.username = username || '';
+            config.password = password || '';
+        } else if (tab === 'm3u') {
+            const m3uUrl = document.getElementById('m3u-url')?.value?.trim();
+            const epgUrl = document.getElementById('m3u-epg-url')?.value?.trim();
+            if (!m3uUrl) {
+                this.showLoginStatus('Informe a URL da lista M3U / M3U8.', 'error');
+                return;
+            }
+            config.m3uUrl = m3uUrl;
+            config.epgUrl = epgUrl || '';
+        }
 
         try {
-            const res = await fetch(`${this.apiBaseUrl}${endpoint}`);
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            if (data && Array.isArray(data.channels) && data.channels.length > 0) {
-                console.log(`[API] ${data.channels.length} canais (${country.toUpperCase()}) carregados com sucesso da API!`);
-                const staticCh = window.CHANNEL_000_STATIC || this.channels[0];
-                const transformed = data.channels.map((ch, idx) => {
-                    return window.transformApiChannel ? window.transformApiChannel(ch, idx + 1) : ch;
-                });
-
-                if (!this.playlistCache) this.playlistCache = {};
-                this.playlistCache[country] = transformed;
-
-                const wasOnStatic = (this.currentChannelIndex === 0);
-                this.channels = [staticCh, ...transformed];
-                window.CHANNELS_DATA = this.channels;
-
-                // Reconstroi o Guia EPG e o Mini Guia com os canais e EPG em tempo real da API
-                this.buildEPGGrid();
-                this.buildMiniGuide();
-
-                // Atualiza tag da playlist no Guia EPG
-                if (this.epgChannelsFilter) {
-                    this.epgChannelsFilter.innerText = this.getPlaylistDisplayName();
-                }
-
-                // Sintoniza ou atualiza
-                if (forceTuneFirst || (wasOnStatic && this.channels.length > 1)) {
-                    this.tuneChannelByIndex(1, forceTuneFirst);
-                } else {
-                    if (this.currentChannelIndex >= this.channels.length) {
-                        this.currentChannelIndex = 1;
-                    }
-                    this.updateBannerForChannel(this.currentChannelIndex);
-                }
-
-                if (this.isGuideOpen) {
-                    this.guideSelectedChannelIndex = Math.min(this.guideSelectedChannelIndex, this.channels.length - 1);
-                    if (this.guideSelectedChannelIndex <= 0 && this.channels.length > 1) {
-                        this.guideSelectedChannelIndex = 1;
-                    }
-                    this.updateEPGSelection();
-                }
-
-                if (this._syncRetryTimeout) {
-                    clearTimeout(this._syncRetryTimeout);
-                    this._syncRetryTimeout = null;
-                }
-            }
+            await this.loadIPTVConfig(config);
         } catch (err) {
-            console.warn(`[API] Conexão com a API na porta 1414 (${endpoint}) pendente ou offline. Aguardando servidor API:`, err.message);
-            if (this.playlistCache && this.playlistCache[country]) {
-                const staticCh = window.CHANNEL_000_STATIC || this.channels[0];
-                this.channels = [staticCh, ...this.playlistCache[country]];
-                window.CHANNELS_DATA = this.channels;
-                this.buildEPGGrid();
-                this.buildMiniGuide();
-                if (forceTuneFirst) this.tuneChannelByIndex(1, true);
-                else this.updateBannerForChannel(this.currentChannelIndex);
+            console.error('[IPTV] Erro ao conectar:', err);
+            this.showLoginStatus(err.message || 'Erro ao sintonizar canais.', 'error');
+        }
+    }
+
+    async handleLoginDemo() {
+        const config = { type: 'demo' };
+        try {
+            await this.loadIPTVConfig(config);
+        } catch (err) {
+            this.showLoginStatus(err.message || 'Erro ao carregar canais demo.', 'error');
+        }
+    }
+
+    async loadIPTVConfig(config) {
+        this.showLoginStatus('Sintonizando satélite e baixando canais...', 'connecting');
+        const channels = await window.GenericIPTVManager.loadProvider(config);
+        if (!channels || channels.length === 0) {
+            throw new Error('Nenhum canal ativo retornado pelo provedor.');
+        }
+
+        window.GenericIPTVManager.saveConfig(config);
+        const staticCh = window.CHANNEL_000_STATIC || this.channels[0];
+        this.channels = [staticCh, ...channels];
+        window.CHANNELS_DATA = this.channels;
+
+        this.buildEPGGrid();
+        this.buildMiniGuide();
+        this.closeLoginModal();
+        this.tuneChannelByIndex(1, true);
+        this.showBanner(6000);
+
+        if (window.retroAudio) {
+            window.retroAudio.playBeep('select');
+        }
+    }
+
+    /**
+     * Inicialização Generic IPTV
+     */
+    async initGenericIPTV() {
+        const savedConfig = window.GenericIPTVManager ? window.GenericIPTVManager.getSavedConfig() : null;
+        if (savedConfig) {
+            try {
+                await this.loadIPTVConfig(savedConfig);
+            } catch (err) {
+                console.warn('[IPTV] Provedor salvo falhou na inicialização:', err.message);
+                this.openLoginModal(err.message);
             }
-            if (this._syncRetryTimeout) clearTimeout(this._syncRetryTimeout);
-            this._syncRetryTimeout = setTimeout(() => this.syncWithApi(), 3000);
+        } else {
+            // Primeiro acesso: abre tela de login
+            this.openLoginModal();
         }
     }
 
@@ -2967,45 +3380,7 @@ class RetroTVController {
      * Atualização periódica da grade EPG em tempo real
      */
     async refreshEPG() {
-        try {
-            const res = await fetch(`${this.apiBaseUrl}/api/epg/live`);
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data && Array.isArray(data.live)) {
-                let changed = false;
-                data.live.forEach(liveItem => {
-                    const ch = this.channels.find(c => c.slug === liveItem.channelId);
-                    if (ch && liveItem.now) {
-                        ch.title = liveItem.now.title || ch.title;
-                        ch.description = liveItem.now.description || ch.description;
-                        if (liveItem.now.start && liveItem.now.stop && window.formatTimeSlot) {
-                            ch.timeSlot = window.formatTimeSlot(liveItem.now.start, liveItem.now.stop);
-                        }
-                        if (ch.schedule && ch.schedule[0]) {
-                            ch.schedule[0].title = liveItem.now.title;
-                            ch.schedule[0].description = liveItem.now.description || ch.description;
-                            if (liveItem.now.start && window.formatTime12) {
-                                ch.schedule[0].time = window.formatTime12(liveItem.now.start);
-                            }
-                        }
-                        if (liveItem.next && ch.schedule && ch.schedule[1]) {
-                            ch.schedule[1].title = liveItem.next.title;
-                            ch.schedule[1].description = liveItem.next.description || '';
-                        }
-                        changed = true;
-                    }
-                });
-
-                if (changed) {
-                    this.updateBannerForChannel(this.currentChannelIndex);
-                    if (this.isGuideOpen) {
-                        this.updateEPGSelection();
-                    }
-                }
-            }
-        } catch (e) {
-            // Silencioso se API offline ou ocupada
-        }
+        // Para Xtream Codes ou M3U dinâmico
     }
 }
 

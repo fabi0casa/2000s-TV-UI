@@ -1,6 +1,7 @@
 /**
- * Aquanet TV - Brazilian IPTV Lineup & Procedural Canvas Feeds
+ * Aquanet TV - Brazilian & Generic IPTV Lineup & Procedural Canvas Feeds
  * Recreating the authentic 2000s TV aesthetic with interactive Frutiger Aero visuals
+ * Supports: Xtream Codes, EzhomeTech API, FastoCloud, and Direct M3U URL
  */
 
 /**
@@ -95,101 +96,482 @@ function cleanChannelName(rawName) {
 }
 
 /**
- * Transforma um item bruto retornado pela API em objeto do canal frontend
+ * Parser de Listas M3U / M3U8 Client-side
  */
-function transformApiChannel(rawCh, index) {
-    const channelNum = index; // 1, 2, 3, ... 300
-    const channelIdStr = String(channelNum).padStart(3, '0'); // "001", "002", ... "300"
-    const cleanName = cleanChannelName(rawCh.name);
-    const isUS = (rawCh.country === 'US');
+function parseM3U(content, defaultCategory = 'Geral') {
+    if (!content || typeof content !== 'string') return [];
 
-    const hasEpgFlag = Boolean(rawCh.epg && rawCh.epg.hasEpg);
-    const rawPrograms = (hasEpgFlag && Array.isArray(rawCh.epg.programs)) ? rawCh.epg.programs : [];
+    const lines = content.split(/\r?\n/);
+    const items = [];
+    let current = null;
 
-    let schedule = [];
+    for (let i = 0; i < lines.length; i++) {
+        const rawLine = lines[i];
+        const line = rawLine.trim();
+        if (!line) continue;
 
-    if (rawPrograms.length > 0) {
-        schedule = rawPrograms.map(p => ({
-            time: formatTime12(p.start),
-            timeBadge: formatTimeBadge(p.start),
-            timeSlot: formatTimeSlot(p.start, p.stop),
-            title: p.title || `${cleanName} - ${isUS ? 'Live' : 'Atração'}`,
-            description: p.description || '',
-            category: p.category || rawCh.category || (isUS ? 'General' : 'Geral'),
-            rating: isUS ? "TV-G" : "LIVRE",
-            current: Boolean(p.isLive),
-            start: typeof p.start === 'string' ? p.start : new Date(p.start).toISOString(),
-            stop: typeof p.stop === 'string' ? p.stop : new Date(p.stop).toISOString()
-        }));
-    } else if (hasEpgFlag && rawCh.epg.now) {
-        schedule.push({
-            time: formatTime12(rawCh.epg.now.start),
-            timeBadge: formatTimeBadge(rawCh.epg.now.start),
-            timeSlot: formatTimeSlot(rawCh.epg.now.start, rawCh.epg.now.stop),
-            title: rawCh.epg.now.title || `${cleanName} - ${isUS ? 'Live' : 'Ao Vivo'}`,
-            description: rawCh.epg.now.description || '',
-            rating: isUS ? "TV-G" : "LIVRE",
-            current: true,
-            start: typeof rawCh.epg.now.start === 'string' ? rawCh.epg.now.start : new Date(rawCh.epg.now.start).toISOString(),
-            stop: typeof rawCh.epg.now.stop === 'string' ? rawCh.epg.now.stop : new Date(rawCh.epg.now.stop).toISOString()
-        });
-        if (rawCh.epg.next) {
-            schedule.push({
-                time: formatTime12(rawCh.epg.next.start),
-                timeBadge: formatTimeBadge(rawCh.epg.next.start),
-                timeSlot: formatTimeSlot(rawCh.epg.next.start, rawCh.epg.next.stop),
-                title: rawCh.epg.next.title || (isUS ? `Upcoming Program` : `Próxima Atração`),
-                description: rawCh.epg.next.description || '',
-                rating: isUS ? "TV-G" : "LIVRE",
-                current: false,
-                start: typeof rawCh.epg.next.start === 'string' ? rawCh.epg.next.start : new Date(rawCh.epg.next.start).toISOString(),
-                stop: typeof rawCh.epg.next.stop === 'string' ? rawCh.epg.next.stop : new Date(rawCh.epg.next.stop).toISOString()
+        if (line.startsWith('#EXTINF:')) {
+            const tvgIdMatch = line.match(/tvg-id="([^"]*)"/i);
+            const tvgNameMatch = line.match(/tvg-name="([^"]*)"/i);
+            const tvgLogoMatch = line.match(/tvg-logo="([^"]*)"/i);
+            const groupTitleMatch = line.match(/group-title="([^"]*)"/i);
+            const tvgCountryMatch = line.match(/tvg-country="([^"]*)"/i);
+
+            const commaIdx = line.lastIndexOf(',');
+            let rawTitle = commaIdx !== -1 ? line.slice(commaIdx + 1).trim() : '';
+
+            if (!rawTitle && tvgNameMatch) {
+                rawTitle = tvgNameMatch[1];
+            }
+
+            current = {
+                tvgId: tvgIdMatch ? tvgIdMatch[1].trim() : '',
+                tvgName: tvgNameMatch ? tvgNameMatch[1].trim() : '',
+                tvgLogo: tvgLogoMatch ? tvgLogoMatch[1].trim() : '',
+                category: groupTitleMatch ? groupTitleMatch[1].trim() : defaultCategory,
+                name: rawTitle || 'Canal Desconhecido',
+                country: tvgCountryMatch ? tvgCountryMatch[1].toUpperCase() : 'BR',
+                streamUrl: ''
+            };
+        } else if (!line.startsWith('#') && current) {
+            if (line.startsWith('http://') || line.startsWith('https://') || line.startsWith('rtmp://')) {
+                current.streamUrl = line;
+                items.push(current);
+                current = null;
+            }
+        }
+    }
+
+    return items;
+}
+
+/**
+ * Parser simples de XMLTV / EPG
+ */
+function parseXMLTV(xmlString) {
+    const channelMap = new Map();
+    if (!xmlString) return channelMap;
+
+    const channelRegex = /<channel\s+id="([^"]+)">([\s\S]*?)<\/channel>/gi;
+    let chMatch;
+    while ((chMatch = channelRegex.exec(xmlString)) !== null) {
+        const id = chMatch[1];
+        channelMap.set(id, []);
+    }
+
+    const progRegex = /<programme\s+start="([^"]+)"\s+stop="([^"]+)"\s+channel="([^"]+)">([\s\S]*?)<\/programme>/gi;
+    let pMatch;
+    while ((pMatch = progRegex.exec(xmlString)) !== null) {
+        const startRaw = pMatch[1];
+        const stopRaw = pMatch[2];
+        const channelId = pMatch[3];
+        const block = pMatch[4];
+
+        if (!channelMap.has(channelId)) continue;
+
+        const titleMatch = block.match(/<title[^>]*>([^<]+)<\/title>/i);
+        const descMatch = block.match(/<desc[^>]*>([^<]+)<\/desc>/i);
+
+        const parseDate = (dStr) => {
+            if (!dStr) return null;
+            const m = dStr.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+            if (!m) return null;
+            return new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z`);
+        };
+
+        const start = parseDate(startRaw);
+        const stop = parseDate(stopRaw);
+        if (start && stop) {
+            channelMap.get(channelId).push({
+                start: start.toISOString(),
+                stop: stop.toISOString(),
+                title: titleMatch ? decodeHtmlEntities(titleMatch[1].trim()) : 'Programa ao Vivo',
+                description: descMatch ? decodeHtmlEntities(descMatch[1].trim()) : ''
             });
         }
     }
 
-    // Se o canal não possui EPG oficial da API, NÃO inventar programas falsos!
-    // A grade permanece vazia ([]) e a interface exibe: "sem informações de programação..."
-    const hasRealEpg = schedule.length > 0;
-    const currentLiveProg = schedule.find(p => p.current) || schedule[0];
-    const progTitle = currentLiveProg ? currentLiveProg.title : `${cleanName} - ${isUS ? 'Live' : 'Ao Vivo'}`;
-    const progDesc = currentLiveProg
-        ? (currentLiveProg.description || (isUS ? `Live broadcast from ${cleanName}.` : `Transmissão ao vivo do canal ${cleanName}.`))
-        : (isUS
-            ? `Live television broadcast from ${cleanName}. Continuous transmission. Category: ${rawCh.category || 'General'}.`
-            : `Transmissão ao vivo do canal ${cleanName}. Programação contínua da emissora. Categoria: ${rawCh.category || 'Geral'}.`);
+    return channelMap;
+}
 
-    const timeSlotStr = currentLiveProg ? currentLiveProg.timeSlot : formatTimeSlot(null, null);
+/**
+ * Cliente Xtream Codes API
+ */
+class XtreamCodesClient {
+    static sanitizeUrl(url) {
+        if (!url) return '';
+        let clean = url.trim();
+        if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+            clean = 'http://' + clean;
+        }
+        return clean.replace(/\/+$/, '');
+    }
+
+    static async authenticate(server, username, password) {
+        const base = this.sanitizeUrl(server);
+        const authUrl = `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+        
+        const res = await fetch(authUrl);
+        if (!res.ok) throw new Error(`Falha de conexão com o servidor Xtream: HTTP ${res.status}`);
+        
+        const data = await res.json();
+        if (!data || data.user_info?.auth === 0 || data.user_info?.status === 'Disabled') {
+            throw new Error(data.user_info?.message || 'Credenciais inválidas no servidor Xtream Codes.');
+        }
+
+        return {
+            userInfo: data.user_info,
+            serverInfo: data.server_info
+        };
+    }
+
+    static async getLiveStreams(server, username, password) {
+        const base = this.sanitizeUrl(server);
+        const streamsUrl = `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_streams`;
+        
+        const res = await fetch(streamsUrl);
+        if (!res.ok) throw new Error(`Erro ao baixar canais Xtream: HTTP ${res.status}`);
+        
+        const data = await res.json();
+        if (!Array.isArray(data)) return [];
+        return data;
+    }
+
+    static async getCategories(server, username, password) {
+        try {
+            const base = this.sanitizeUrl(server);
+            const catUrl = `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_categories`;
+            const res = await fetch(catUrl);
+            if (res.ok) return await res.json();
+        } catch (e) {
+            console.warn('[Xtream] Falha ao carregar categorias:', e);
+        }
+        return [];
+    }
+
+    static async getShortEpg(server, username, password, streamId) {
+        try {
+            const base = this.sanitizeUrl(server);
+            const epgUrl = `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_short_epg&stream_id=${streamId}&limit=10`;
+            const res = await fetch(epgUrl);
+            if (res.ok) {
+                const data = await res.json();
+                return data.epg_listings || [];
+            }
+        } catch (e) {
+            console.warn('[Xtream] Falha ao carregar EPG do canal:', streamId, e);
+        }
+        return [];
+    }
+
+    static buildStreamUrl(server, username, password, streamId, container = 'ts') {
+        const base = this.sanitizeUrl(server);
+        return `${base}/live/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${streamId}.${container}`;
+    }
+}
+
+/**
+ * Cliente EzhomeTech API (Ezserver / Ezhome Portal)
+ */
+class EzhomeTechClient {
+    static sanitizeUrl(url) {
+        if (!url) return '';
+        let clean = url.trim();
+        if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+            clean = 'http://' + clean;
+        }
+        return clean.replace(/\/+$/, '');
+    }
+
+    static async getLive(server, username, password) {
+        const base = this.sanitizeUrl(server);
+        // Primeiro tenta endpoint JSON do EzhomeTech
+        const jsonUrl = `${base}/get_live?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+        try {
+            const res = await fetch(jsonUrl);
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) return data;
+            }
+        } catch (e) {}
+
+        // Fallback: playlist M3U gerada pelo EzhomeTech
+        const m3uUrl = `${base}/playlist.m3u?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+        const m3uRes = await fetch(m3uUrl);
+        if (!m3uRes.ok) throw new Error(`Falha ao conectar ao servidor EzhomeTech: HTTP ${m3uRes.status}`);
+        const text = await m3uRes.text();
+        return parseM3U(text);
+    }
+}
+
+/**
+ * Cliente FastoCloud API
+ */
+class FastoCloudClient {
+    static sanitizeUrl(url) {
+        if (!url) return '';
+        let clean = url.trim();
+        if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+            clean = 'http://' + clean;
+        }
+        return clean.replace(/\/+$/, '');
+    }
+
+    static async getStreams(server, username, password) {
+        const base = this.sanitizeUrl(server);
+        const headers = {};
+        if (username) {
+            headers['Authorization'] = 'Basic ' + btoa(`${username}:${password}`);
+        }
+
+        const apiUrl = `${base}/api/v1/streams`;
+        try {
+            const res = await fetch(apiUrl, { headers });
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data?.streams)) return data.streams;
+                if (Array.isArray(data)) return data;
+            }
+        } catch (e) {}
+
+        // Fallback playlist HLS/M3U do FastoCloud
+        const m3uUrl = `${base}/playlist.m3u8`;
+        const resM3u = await fetch(m3uUrl, { headers });
+        if (!resM3u.ok) throw new Error(`Falha ao conectar ao servidor FastoCloud: HTTP ${resM3u.status}`);
+        const text = await resM3u.text();
+        return parseM3U(text);
+    }
+}
+
+/**
+ * Canais Públicos de Demonstração (Fallback instantâneo sem necessidade de login)
+ */
+const DEMO_CHANNELS = [
+    {
+        name: "TV Brasil HD",
+        category: "Nacional / Notícias",
+        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/60/TV_Brasil_2023.svg/320px-TV_Brasil_2023.svg.png",
+        streamUrl: "https://tvbrasil-stream.ebc.com.br/index.m3u8",
+        epgId: "tvbrasil"
+    },
+    {
+        name: "Record News",
+        category: "Notícias 24h",
+        logo: "https://upload.wikimedia.org/wikipedia/pt/thumb/a/ad/Record_News_2016.png/260px-Record_News_2016.png",
+        streamUrl: "https://stream.recordtv.com.br/recordnews/live.m3u8",
+        epgId: "recordnews"
+    },
+    {
+        name: "Red Bull TV",
+        category: "Esportes Radicais",
+        logo: "https://images.pluto.tv/channels/5e00ee4c3ec3ab00096538b9/colorLogoPNG.png",
+        streamUrl: "https://rbmn-live.akamaized.net/hls/live/590964/BoRB-AT/master.m3u8",
+        epgId: "redbulltv"
+    },
+    {
+        name: "NASA TV HD",
+        category: "Ciência & Espaço",
+        logo: "https://images.pluto.tv/channels/582df5e08b1735bc5d7c80ab/colorLogoPNG.png",
+        streamUrl: "https://ntv1.akamaized.net/hls/live/2014075/NASA-NTV1-HLS/master.m3u8",
+        epgId: "nasatv"
+    },
+    {
+        name: "Euronews Português",
+        category: "Mundo & Notícias",
+        logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/2/23/Euronews_2016_logo.svg/320px-Euronews_2016_logo.svg.png",
+        streamUrl: "https://euronews-euronews-portugues-1-pt.samsung.wurl.tv/playlist.m3u8",
+        epgId: "euronews"
+    },
+    {
+        name: "Bloomberg TV Live",
+        category: "Economia & Negócios",
+        logo: "https://images.pluto.tv/channels/59b94091a0c4f8db277114b0/colorLogoPNG.png",
+        streamUrl: "https://liveproduseast.global.ssl.fastly.net/us/Channel-HD-AWS-virginia-1/live.m3u8",
+        epgId: "bloomberg"
+    }
+];
+
+/**
+ * Transforma item bruto de qualquer provedor em objeto padrão do canal
+ */
+function transformGenericChannel(rawCh, index) {
+    const channelNum = index;
+    const channelIdStr = String(channelNum).padStart(3, '0');
+    const cleanName = cleanChannelName(rawCh.name || rawCh.title || `CANAL ${channelNum}`);
     const shortCode = cleanName.toUpperCase().slice(0, 14);
+
+    let schedule = [];
+    if (Array.isArray(rawCh.schedule) && rawCh.schedule.length > 0) {
+        schedule = rawCh.schedule;
+    } else {
+        const now = new Date();
+        const baseH = now.getHours();
+        const start1 = new Date(now);
+        start1.setMinutes(0, 0, 0);
+        const stop1 = new Date(start1);
+        stop1.setHours(baseH + 1);
+
+        const start2 = new Date(stop1);
+        const stop2 = new Date(start2);
+        stop2.setHours(baseH + 2);
+
+        schedule = [
+            {
+                time: formatTime12(start1),
+                timeBadge: formatTimeBadge(start1),
+                timeSlot: formatTimeSlot(start1, stop1),
+                title: `${cleanName} - Transmissão ao Vivo`,
+                description: `Transmissão contínua de ${cleanName}. Categoria: ${rawCh.category || 'Geral'}.`,
+                rating: "LIVRE",
+                current: true,
+                start: start1.toISOString(),
+                stop: stop1.toISOString()
+            },
+            {
+                time: formatTime12(start2),
+                timeBadge: formatTimeBadge(start2),
+                timeSlot: formatTimeSlot(start2, stop2),
+                title: `${cleanName} - Próxima Atração`,
+                description: `Programação seguinte na grade da emissora ${cleanName}.`,
+                rating: "LIVRE",
+                current: false,
+                start: start2.toISOString(),
+                stop: stop2.toISOString()
+            }
+        ];
+    }
+
+    const currentLiveProg = schedule.find(p => p.current) || schedule[0];
+    const progTitle = currentLiveProg ? currentLiveProg.title : `${cleanName} - Ao Vivo`;
+    const progDesc = currentLiveProg ? currentLiveProg.description : `Transmissão via satélite do canal ${cleanName}.`;
+    const timeSlotStr = currentLiveProg ? currentLiveProg.timeSlot : formatTimeSlot(null, null);
 
     return {
         id: channelIdStr,
         number: channelNum,
-        slug: rawCh.id,
+        slug: rawCh.stream_id ? String(rawCh.stream_id) : `ch-${channelNum}`,
         code: shortCode,
         name: cleanName,
         title: progTitle,
         timeSlot: timeSlotStr,
-        language: isUS ? "English" : "Português",
-        rating: isUS ? "TV-G" : "LIVRE",
-        category: rawCh.category || (isUS ? "General" : "Geral"),
+        language: "Português",
+        rating: "LIVRE",
+        category: rawCh.category || rawCh.category_name || "Geral",
         description: progDesc,
-        logo: rawCh.logo || "",
-        country: rawCh.country || "BR",
-        streamUrl: rawCh.streamUrl,
-        liveUrl: rawCh.liveUrl || `http://localhost:1414/live/${rawCh.id}.m3u8`,
-        proxyUrl: rawCh.proxyUrl || `http://localhost:1414/proxy?url=${encodeURIComponent(rawCh.streamUrl)}`,
+        logo: rawCh.logo || rawCh.stream_icon || rawCh.tvgLogo || "",
+        streamUrl: rawCh.streamUrl || rawCh.url || "",
+        liveUrl: rawCh.streamUrl || rawCh.url || "",
         type: "iptv",
         epg: {
-            ...rawCh.epg,
-            hasEpg: hasRealEpg
+            hasEpg: schedule.length > 0
         },
         schedule: schedule
     };
 }
 
 /**
- * Procedural TV Content Canvas Renderer
+ * Gerenciador Unificado de Provedores IPTV
+ */
+class GenericIPTVManager {
+    static STORAGE_KEY = 'aquanet_iptv_provider_config';
+
+    static getSavedConfig() {
+        try {
+            const raw = localStorage.getItem(this.STORAGE_KEY);
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    static saveConfig(config) {
+        try {
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(config));
+        } catch (e) {}
+    }
+
+    static clearConfig() {
+        try {
+            localStorage.removeItem(this.STORAGE_KEY);
+        } catch (e) {}
+    }
+
+    static async loadProvider(config) {
+        if (!config) throw new Error('Configuração de provedor ausente.');
+
+        let rawChannels = [];
+        const type = config.type; // 'xtream' | 'ezhome' | 'fasto' | 'm3u' | 'demo'
+
+        switch (type) {
+            case 'xtream': {
+                await XtreamCodesClient.authenticate(config.server, config.username, config.password);
+                const categories = await XtreamCodesClient.getCategories(config.server, config.username, config.password);
+                const catMap = new Map();
+                if (Array.isArray(categories)) {
+                    categories.forEach(c => catMap.set(String(c.category_id), c.category_name));
+                }
+
+                const streams = await XtreamCodesClient.getLiveStreams(config.server, config.username, config.password);
+                rawChannels = streams.map(s => {
+                    const catName = catMap.get(String(s.category_id)) || 'Geral';
+                    const streamUrl = XtreamCodesClient.buildStreamUrl(config.server, config.username, config.password, s.stream_id);
+                    return {
+                        name: s.name,
+                        stream_id: s.stream_id,
+                        category: catName,
+                        logo: s.stream_icon,
+                        streamUrl: streamUrl
+                    };
+                });
+                break;
+            }
+            case 'ezhome': {
+                const streams = await EzhomeTechClient.getLive(config.server, config.username, config.password);
+                rawChannels = streams.map(s => ({
+                    name: s.name || s.rawTitle,
+                    category: s.category || s.groupTitle || 'Ezhome',
+                    logo: s.logo || s.tvgLogo,
+                    streamUrl: s.streamUrl || s.url
+                }));
+                break;
+            }
+            case 'fasto': {
+                const streams = await FastoCloudClient.getStreams(config.server, config.username, config.password);
+                rawChannels = streams.map(s => ({
+                    name: s.name || s.rawTitle,
+                    category: s.category || s.groupTitle || 'FastoCloud',
+                    logo: s.logo || s.tvgLogo,
+                    streamUrl: s.streamUrl || s.url
+                }));
+                break;
+            }
+            case 'm3u': {
+                if (!config.m3uUrl) throw new Error('A URL da lista M3U é obrigatória.');
+                const res = await fetch(config.m3uUrl);
+                if (!res.ok) throw new Error(`Falha ao baixar lista M3U: HTTP ${res.status}`);
+                const text = await res.text();
+                rawChannels = parseM3U(text);
+                break;
+            }
+            case 'demo':
+            default: {
+                rawChannels = DEMO_CHANNELS;
+                break;
+            }
+        }
+
+        if (!Array.isArray(rawChannels) || rawChannels.length === 0) {
+            throw new Error('Nenhum canal ativo encontrado no provedor selecionado.');
+        }
+
+        // Converte para objetos de canais do player
+        const channels = rawChannels.map((ch, idx) => transformGenericChannel(ch, idx + 1));
+        return channels;
+    }
+}
+
+/**
+ * Procedural TV Content Canvas Renderer (Sem Sinal, Snow Noise & Bouncing Logo)
  */
 class TVFeedGenerator {
     constructor(canvas) {
@@ -404,9 +786,7 @@ class TVFeedGenerator {
     }
 }
 
-
-// Inicializa apenas com o Canal 000 (Sem Sinal). Todos os canais de transmissao
-// sao servidos EXCLUSIVAMENTE pela API (http://localhost:1414/api/channels/br).
+// Inicializa com Canal 000 (Sem Sinal)
 const CHANNELS_DATA = [
     CHANNEL_000_STATIC
 ];
@@ -414,7 +794,13 @@ const CHANNELS_DATA = [
 window.CHANNEL_000_STATIC = CHANNEL_000_STATIC;
 window.CHANNELS_DATA = CHANNELS_DATA;
 window.TVFeedGenerator = TVFeedGenerator;
-window.transformApiChannel = transformApiChannel;
+window.transformGenericChannel = transformGenericChannel;
 window.formatTime12 = formatTime12;
 window.formatTimeBadge = formatTimeBadge;
 window.formatTimeSlot = formatTimeSlot;
+window.XtreamCodesClient = XtreamCodesClient;
+window.EzhomeTechClient = EzhomeTechClient;
+window.FastoCloudClient = FastoCloudClient;
+window.parseM3U = parseM3U;
+window.GenericIPTVManager = GenericIPTVManager;
+window.DEMO_CHANNELS = DEMO_CHANNELS;

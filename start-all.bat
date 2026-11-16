@@ -1,23 +1,13 @@
 @echo off
-title Aquanet TV - Iniciar Tudo (API + Frontend)
-color 0E
+title Aquanet TV - React Native Android
+color 0B
 
 echo ========================================================
-echo   Iniciando Aquanet IPTV Completo (API + Frontend)
+echo   Iniciando Aquanet IPTV React Native (Android Nativo)
 echo ========================================================
 echo.
-echo 1. Abrindo API IPTV & EPG na porta 1414...
-start "Aquanet IPTV API (Porta 1414)" cmd /c "cd api && start.bat"
-
-echo 2. Aguardando 3 segundos...
-timeout /t 3 /nobreak >nul
-
-echo 3. Abrindo Frontend na porta 8080...
-start "Aquanet TV Frontend (Porta 8080)" cmd /c "cd web && start-frontend.bat"
-
+echo 1. Atualizando bundle do player...
+call node bundle-web.js
 echo.
-echo Servicos iniciados em janelas separadas!
-echo API: http://localhost:1414
-echo Frontend: http://localhost:8080
-echo.
-pause
+echo 2. Iniciando Metro Bundler / Expo...
+call npm start

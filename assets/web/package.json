@@ -1,0 +1,20 @@
+{
+  "name": "aquanet-iptv-frontend",
+  "version": "1.1.0",
+  "description": "Frutiger Aero IPTV Frontend com integração à API IPTV e EPG dinâmico",
+  "main": "frontend-server.js",
+  "scripts": {
+    "start": "node frontend-server.js",
+    "frontend": "node frontend-server.js",
+    "api": "cd api && npm start",
+    "start:all": "start-all.bat"
+  },
+  "keywords": [
+    "iptv",
+    "frutiger-aero",
+    "epg",
+    "hls"
+  ],
+  "author": "",
+  "license": "ISC"
+}

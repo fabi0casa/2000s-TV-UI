@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="shortcut icon" href="icons/aquanet-nosignal-1.png">
+    <title>Aquanet TV</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- SVG Skeuomorphic Icons & Badges Definitions -->
+    <svg style="display: none;">
+        <defs>
+            <!-- 3D Globe with Atmosphere -->
+            <radialGradient id="globeGrad" cx="35%" cy="30%" r="70%">
+                <stop offset="0%" stop-color="#80d4ff" />
+                <stop offset="30%" stop-color="#1e88e5" />
+                <stop offset="75%" stop-color="#0d47a1" />
+                <stop offset="100%" stop-color="#051e44" />
+            </radialGradient>
+            <radialGradient id="globeShine" cx="30%" cy="25%" r="50%">
+                <stop offset="0%" stop-color="#ffffff" stop-opacity="0.9" />
+                <stop offset="50%" stop-color="#ffffff" stop-opacity="0.1" />
+                <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+            </radialGradient>
+
+            <!-- 3D Silver Rim for Clock -->
+            <linearGradient id="silverRim" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff" />
+                <stop offset="35%" stop-color="#d4e0eb" />
+                <stop offset="60%" stop-color="#8fa3b5" />
+                <stop offset="100%" stop-color="#4e6273" />
+            </linearGradient>
+
+            <!-- 3D Chrome Gear -->
+            <linearGradient id="chromeGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#fdfdfd" />
+                <stop offset="48%" stop-color="#c8d6e5" />
+                <stop offset="52%" stop-color="#8395a7" />
+                <stop offset="100%" stop-color="#cad6e4" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <div id="tv-app">
+        <!-- Main TV Screen Container -->
+        <div class="tv-screen-wrapper">
+            <!-- Procedural Channel Canvas Broadcast Feeds -->
+            <canvas id="tv-canvas"></canvas>
+
+            <!-- Custom Video Feed Support (for user stream URLs or files) -->
+            <video id="custom-video" loop playsinline></video>
+
+            <!-- YouTube IFrame Embed Container -->
+            <div id="youtube-container" class="youtube-player-container">
+                <div id="youtube-player"></div>
+            </div>
+
+            <!-- Frutiger Aero Channel Loading Spinner -->
+            <div id="channel-loading-spinner" class="channel-loading-overlay hidden">
+                <div class="aero-spinner-container">
+                    <div class="aero-spinner-ambient"></div>
+                    <div class="aero-spinner-track"></div>
+                    <div class="aero-spinner-ring"></div>
+                    <div class="aero-spinner-ring-inner"></div>
+                    <div class="aero-spinner-orb"></div>
+                </div>
+                <div class="aero-loading-badge">
+                    <span class="aero-loading-dot"></span>
+                    <span class="aero-loading-text">Sintonizando...</span>
+                </div>
+            </div>
+
+            <!-- CRT Scanlines & Phosphor Bloom Layer -->
+            <div id="crt-layer" class="crt-overlay"></div>
+
+            <!-- ========================================================
+                 TOP CHANNEL INFO BANNER (OSD - Inspired by Screenshot 1)
+                 ======================================================== -->
+            <div id="channel-banner" class="channel-info-banner">
+                <!-- Top Row: Navy Gloss Glass -->
+                <div class="banner-top-row">
+                    <div class="banner-channel-badge">
+                        <div class="logo-orb">
+                            <!-- Yin-Yang Logo Emblem -->
+                            <svg viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="48" fill="#111827"/>
+                                <path d="M 50 2 A 48 48 0 0 1 50 98 A 24 24 0 0 1 50 50 A 24 24 0 0 0 50 2" fill="#ffffff"/>
+                                <circle cx="50" cy="26" r="6" fill="#111827"/>
+                                <circle cx="50" cy="74" r="6" fill="#ffffff"/>
+                            </svg>
+                        </div>
+                        <div class="channel-num-name">
+                            <span id="banner-ch-num" class="ch-num">000</span>
+                            <span id="banner-ch-code" class="ch-code">SEM SINAL</span>
+                        </div>
+                    </div>
+
+                    <div id="banner-prog-title" class="banner-program-title">
+                        Sinal do Satélite Interrompido
+                    </div>
+
+                    <div class="banner-audio-lang">
+                        <span id="banner-lang">Português</span>
+                    </div>
+                </div>
+
+                <!-- Middle Row: Metallic Light Blue Gloss with dividers -->
+                <div class="banner-middle-row">
+                    <div class="banner-info-segment">
+                        <span id="banner-current-time" class="banner-time-current">Fri 8/16 1:00p</span>
+                    </div>
+                    <div class="banner-info-segment">
+                        <span id="banner-timeslot" class="banner-time-slot">1:00p - 2:00p</span>
+                    </div>
+                    <div class="banner-info-segment">
+                        <span id="banner-rating" class="banner-rating">NONE</span>
+                    </div>
+
+                    <!-- 3D Skeuomorphic Icons Group -->
+                    <div class="banner-icons-group">
+                        <!-- 3D Globe -->
+                        <div class="skeuo-icon" title="Global Satellite Network">
+                            <svg viewBox="0 0 40 40">
+                                <circle cx="20" cy="20" r="18" fill="url(#globeGrad)" />
+                                <!-- Continents shape -->
+                                <path d="M 12 12 Q 18 10 24 14 Q 28 17 26 23 Q 22 28 16 26 Q 10 24 12 12 Z" fill="#43a047" opacity="0.85"/>
+                                <path d="M 23 26 Q 27 25 30 29 Q 28 34 22 34 Q 20 30 23 26 Z" fill="#43a047" opacity="0.85"/>
+                                <!-- Gloss shine highlight -->
+                                <ellipse cx="16" cy="12" rx="10" ry="6" fill="url(#globeShine)" transform="rotate(-20 16 12)" />
+                                <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
+                            </svg>
+                        </div>
+
+                        <!-- 3D Analog Clock -->
+                        <div class="skeuo-icon" title="System Clock">
+                            <svg viewBox="0 0 40 40">
+                                <circle cx="20" cy="20" r="18" fill="url(#silverRim)" />
+                                <circle cx="20" cy="20" r="14" fill="#f0f7fd" stroke="#7b9cb8" stroke-width="1"/>
+                                <!-- Clock marks -->
+                                <line x1="20" y1="8" x2="20" y2="10.5" stroke="#102a45" stroke-width="1.5"/>
+                                <line x1="20" y1="29.5" x2="20" y2="32" stroke="#102a45" stroke-width="1.5"/>
+                                <line x1="8" y1="20" x2="10.5" y2="20" stroke="#102a45" stroke-width="1.5"/>
+                                <line x1="29.5" y1="20" x2="32" y2="20" stroke="#102a45" stroke-width="1.5"/>
+                                <!-- Hands -->
+                                <line id="clock-hour-hand" x1="20" y1="20" x2="20" y2="13" stroke="#0e2338" stroke-width="2" stroke-linecap="round"/>
+                                <line id="clock-minute-hand" x1="20" y1="20" x2="27" y2="20" stroke="#173d61" stroke-width="1.5" stroke-linecap="round"/>
+                                <circle cx="20" cy="20" r="2" fill="#d32f2f"/>
+                            </svg>
+                        </div>
+
+                        <!-- 3D Chrome Gear -->
+                        <div class="skeuo-icon" title="TV Settings" id="btn-banner-settings" style="cursor: pointer;">
+                            <svg viewBox="0 0 40 40">
+                                <circle cx="20" cy="20" r="15" fill="url(#chromeGrad)" stroke="#526b88" stroke-width="1"/>
+                                <path d="M 18 4 L 22 4 L 22 8 L 18 8 Z M 18 32 L 22 32 L 22 36 L 18 36 Z M 4 18 L 8 18 L 8 22 L 4 22 Z M 32 18 L 36 18 L 36 22 L 32 22 Z
+                                         M 8 9 L 12 6 L 14 9 L 10 12 Z M 26 29 L 30 26 L 32 29 L 28 32 Z M 9 30 L 6 26 L 9 24 L 12 28 Z M 29 10 L 26 6 L 29 4 L 32 8 Z" fill="url(#chromeGrad)" stroke="#455a73" stroke-width="0.8"/>
+                                <circle cx="20" cy="20" r="6" fill="#203348" stroke="#ffffff" stroke-width="1"/>
+                                <ellipse cx="17" cy="16" rx="9" ry="5" fill="rgba(255,255,255,0.45)" transform="rotate(-30 17 16)"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bottom Row: Favorites & Color Action Hints -->
+                <div class="banner-bottom-row">
+                    <div class="banner-favorites-tag" id="banner-favorites-tag">Playlist: Canais Brasileiros</div>
+                    <div class="banner-remote-hints">
+                        <div class="remote-hint-item" id="hint-red-signal">
+                            <span class="orb-dot orb-red"></span>
+                            <span id="hint-sfx-text">Mutar SFX</span>
+                        </div>
+                        <div class="remote-hint-item" id="hint-green-crt">
+                            <span class="orb-dot orb-green"></span>
+                            <span>CRT TV Mode</span>
+                        </div>
+                        <div class="remote-hint-item" id="hint-options">
+                            <span class="orb-dot orb-yellow"></span>
+                            <span>TV Options</span>
+                        </div>
+                        <div class="remote-hint-item" id="hint-mini-guide">
+                            <span class="orb-dot orb-blue"></span>
+                            <span>Canal Aleatório</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================
+                 FULL SCREEN EPG GUIDE (Inspired directly by Screenshot 2)
+                 ======================================================== -->
+            <div id="epg-guide" class="epg-guide-screen hidden">
+                <!-- Glossy White/Silver Aero Wave Header -->
+                <div class="epg-header">
+                    <div class="epg-header-watermark">guide</div>
+
+                    <div class="epg-header-left">
+                        <!-- Aquanet TV Logo -->
+                        <div class="cyclone-logo" title="Aquanet TV">
+                            <img src="icons/aquanet-nosignal.png" alt="Aquanet Logo" class="epg-logo-img">
+                        </div>
+                        <div class="epg-header-titles">
+                            <span class="epg-network-brand">AQUANET TV</span>
+                            <span id="epg-headline-text" class="epg-show-headline">GUIA DE PROGRAMAÇÃO IPTV</span>
+                        </div>
+                    </div>
+
+                    <!-- Live PIP Picture-In-Picture Mini Box -->
+                    <div class="epg-pip-box">
+                        <canvas id="pip-canvas" class="epg-pip-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Sub-bar: Time & Ratings -->
+                <div class="epg-subbar">
+                    <div class="epg-subbar-item" id="epg-current-time">Mon 5:46a</div>
+                    <div class="epg-subbar-item" id="epg-timeslot">5:30a - 6:00a</div>
+                    <div class="epg-subbar-item" id="epg-rating">TV-PG</div>
+                </div>
+
+                <!-- Informational Notice / Synopsis Box -->
+                <div class="epg-notice-box" id="epg-synopsis-text">
+                    Unable to retrieve television lineup. Check for anything obstructing your satellite dish such as tree branches, severe rain, or snow build-up. If safe to do so, remove the obstruction or wait for it to pass.
+                </div>
+
+                <!-- Main EPG Grid Container -->
+                <div class="epg-grid-container">
+                    <!-- Timeline header -->
+                    <div class="epg-grid-time-row">
+                        <div class="epg-time-date-header" id="epg-date-label">Dom 08/11</div>
+                        <div class="epg-timeline-header-track" id="epg-timeline-header-track">
+                            <div class="epg-time-slot-header" id="epg-time-slot-0">--:--</div>
+                            <div class="epg-time-slot-header" id="epg-time-slot-1">--:--</div>
+                            <div class="epg-time-slot-header" id="epg-time-slot-2">--:--</div>
+                            <div class="epg-time-slot-header" id="epg-time-slot-3">--:--</div>
+                            <div class="epg-time-slot-header" id="epg-time-slot-4">--:--</div>
+                            <div class="epg-time-slot-header" id="epg-time-slot-5">--:--</div>
+                        </div>
+                    </div>
+
+                    <!-- Channels and program cells list -->
+                    <div class="epg-grid-body" id="epg-rows-list">
+                        <!-- Populated dynamically via JS -->
+                    </div>
+                </div>
+
+                <!-- EPG Bottom Bar with Colored Navigation Orbs -->
+                <div class="epg-bottom-bar">
+                    <div class="epg-channels-filter" id="epg-channels-filter">Playlist: Canais Brasileiros</div>
+                    <div class="epg-bottom-hints">
+                        <div class="remote-hint-item" id="epg-hint-red" title="Pular canais para cima (Page Up)">
+                            <span class="orb-dot orb-red"></span>
+                            <span>Pág ▲ (-4)</span>
+                        </div>
+                        <div class="remote-hint-item" id="epg-hint-green" title="Pular canais para baixo (Page Down)">
+                            <span class="orb-dot orb-green"></span>
+                            <span>Pág ▼ (+4)</span>
+                        </div>
+                        <div class="remote-hint-item" id="epg-hint-yellow" title="Alternar Playlist (Brasil / EUA)">
+                            <span class="orb-dot orb-yellow"></span>
+                            <span id="epg-hint-yellow-text">Alternar Playlist</span>
+                        </div>
+                        <div class="remote-hint-item" id="epg-hint-blue" title="Fechar Guia e voltar para a TV">
+                            <span class="orb-dot orb-blue"></span>
+                            <span>Fechar (Exit)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================================
+                 MINI GUIDE POPUP OVERLAY
+                 ======================================================== -->
+            <div id="mini-guide" class="mini-guide-overlay hidden">
+                <div class="mini-guide-header">
+                    <span><img src="icons/antena.png" alt="Antena" class="guide-antenna-icon"> MINI GUIDE</span>
+                    <span style="font-size: 13px; color: #a5c7eb;">Pressione OK para sintonizar</span>
+                </div>
+                <div class="mini-guide-list" id="mini-guide-items">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- ========================================================
+                 OSD NUMERIC DIALING POPUP (e.g. "295-")
+                 ======================================================== -->
+            <div id="osd-channel-entry" class="osd-channel-entry hidden">
+                <span id="osd-input-digits">001</span><span class="osd-cursor-blink">-</span>
+            </div>
+
+            <!-- ========================================================
+                 OSD VOLUME BAR POPUP (Frutiger Aero Vertical OSD)
+                 ======================================================== -->
+            <div id="osd-volume-box" class="osd-volume-popup hidden">
+                <div class="osd-vol-icon-bubble">
+                    <img id="vol-icon" src="icons/volume-max.png" alt="Volume" class="osd-vol-icon-img">
+                </div>
+                <div class="osd-vol-bar-track">
+                    <div id="vol-bar-fill" class="osd-vol-bar-fill"></div>
+                </div>
+                <div class="osd-vol-badge">
+                    <span id="vol-text" class="osd-vol-text">VOL 70%</span>
+                </div>
+            </div>
+
+            <!-- ========================================================
+                 OSD MEDIA STATUS POPUP (Play, Pause, Fast-forward, Rewind)
+                 ======================================================== -->
+            <div id="osd-media-badge" class="osd-media-badge hidden">
+                <span id="osd-media-icon" class="osd-media-icon">▶</span>
+                <span id="osd-media-text" class="osd-media-text">REPRODUZINDO</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         GENERIC SATELLITE IPTV LOGIN MODAL (Frutiger Aero 2000s)
+         Supports: XTREAM CODES, EZHOMETECH API, FASTOCLOUD, M3U URL
+         ============================================================ -->
+    <div id="modal-login" class="modal-satellite-login">
+        <div class="modal-header">
+            <div class="modal-header-brand">
+                <div class="skeuo-icon-small">
+                    <svg viewBox="0 0 40 40" width="30" height="30">
+                        <circle cx="20" cy="20" r="18" fill="url(#globeGrad)" />
+                        <path d="M 12 12 Q 18 10 24 14 Q 28 17 26 23 Q 22 28 16 26 Q 10 24 12 12 Z" fill="#43a047" opacity="0.85"/>
+                        <circle cx="20" cy="20" r="18" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="1.2"/>
+                    </svg>
+                </div>
+                <div>
+                    <span class="modal-header-badge">SATELLITE ACCESS • RECEIVER SETUP</span>
+                    <h3 class="modal-login-title">Sintonizador de Satélite IPTV</h3>
+                </div>
+            </div>
+            <div class="modal-login-clock" id="modal-login-clock">--:--</div>
+        </div>
+
+        <p class="modal-login-intro">
+            Selecione o provedor de transmissão e insira suas credenciais para sintonizar a grade de canais:
+        </p>
+
+        <!-- Provider Selection Tabs -->
+        <div class="login-provider-tabs">
+            <button type="button" class="login-tab-btn active" data-tab="xtream">
+                <span class="tab-indicator">●</span> XTREAM CODES
+            </button>
+            <button type="button" class="login-tab-btn" data-tab="ezhome">
+                <span class="tab-indicator">●</span> EZHOMETECH
+            </button>
+            <button type="button" class="login-tab-btn" data-tab="fasto">
+                <span class="tab-indicator">●</span> FASTOCLOUD
+            </button>
+            <button type="button" class="login-tab-btn" data-tab="m3u">
+                <span class="tab-indicator">●</span> LISTA M3U URL
+            </button>
+        </div>
+
+        <!-- Tab 1: Xtream Codes Form -->
+        <div class="login-tab-panel active" id="tab-panel-xtream">
+            <div class="login-field-group">
+                <label for="xtream-server">Servidor / Host (URL ou IP com Porta):</label>
+                <input type="text" id="xtream-server" placeholder="Ex: http://meu-provedor.com:8080" autocomplete="off" autocapitalize="none">
+            </div>
+            <div class="login-row-2col">
+                <div class="login-field-group">
+                    <label for="xtream-user">Usuário:</label>
+                    <input type="text" id="xtream-user" placeholder="Nome de usuário" autocomplete="off" autocapitalize="none">
+                </div>
+                <div class="login-field-group">
+                    <label for="xtream-pass">Senha:</label>
+                    <input type="password" id="xtream-pass" placeholder="••••••••" autocomplete="off">
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: EzhomeTech Form -->
+        <div class="login-tab-panel" id="tab-panel-ezhome">
+            <div class="login-field-group">
+                <label for="ezhome-server">Portal / Servidor EzhomeTech:</label>
+                <input type="text" id="ezhome-server" placeholder="Ex: http://portal.ezserver.tv:8000" autocomplete="off" autocapitalize="none">
+            </div>
+            <div class="login-row-2col">
+                <div class="login-field-group">
+                    <label for="ezhome-user">Usuário / ID:</label>
+                    <input type="text" id="ezhome-user" placeholder="Usuário ou MAC" autocomplete="off" autocapitalize="none">
+                </div>
+                <div class="login-field-group">
+                    <label for="ezhome-pass">Senha / Token:</label>
+                    <input type="password" id="ezhome-pass" placeholder="••••••••" autocomplete="off">
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: FastoCloud Form -->
+        <div class="login-tab-panel" id="tab-panel-fasto">
+            <div class="login-field-group">
+                <label for="fasto-server">Host FastoCloud:</label>
+                <input type="text" id="fasto-server" placeholder="Ex: http://fastocloud.me:8000" autocomplete="off" autocapitalize="none">
+            </div>
+            <div class="login-row-2col">
+                <div class="login-field-group">
+                    <label for="fasto-user">Usuário / Token:</label>
+                    <input type="text" id="fasto-user" placeholder="Usuário ou token" autocomplete="off" autocapitalize="none">
+                </div>
+                <div class="login-field-group">
+                    <label for="fasto-pass">Senha:</label>
+                    <input type="password" id="fasto-pass" placeholder="••••••••" autocomplete="off">
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: M3U URL Form (Sem Conta) -->
+        <div class="login-tab-panel" id="tab-panel-m3u">
+            <div class="login-field-group">
+                <label for="m3u-url">URL da Lista M3U / M3U8 (Sem necessidade de login):</label>
+                <input type="text" id="m3u-url" placeholder="Ex: https://iptv-org.github.io/iptv/index.m3u" autocomplete="off" autocapitalize="none">
+            </div>
+            <div class="login-field-group">
+                <label for="m3u-epg-url">URL do Guia EPG (XMLTV - Opcional):</label>
+                <input type="text" id="m3u-epg-url" placeholder="Ex: https://iptv-org.github.io/epg/guides/br.xml" autocomplete="off" autocapitalize="none">
+            </div>
+        </div>
+
+        <!-- Status Message & Loading Orb -->
+        <div id="login-status-box" class="login-status-box hidden">
+            <span class="status-orb" id="login-status-orb"></span>
+            <span id="login-status-text" class="login-status-text">Conectando...</span>
+        </div>
+
+        <!-- Actions -->
+        <div class="modal-actions login-actions">
+            <button type="button" class="btn-modal btn-modal-demo" id="btn-login-demo" title="Carregar canais abertos e públicos de teste">
+                📺 Testar Canais Demo
+            </button>
+            <button type="button" class="btn-modal btn-modal-cancel hidden" id="btn-login-cancel">
+                Voltar à TV
+            </button>
+            <button type="button" class="btn-modal btn-modal-connect" id="btn-login-connect">
+                🛰️ Sintonizar Satélite
+            </button>
+        </div>
+    </div>
+
+    <!-- Custom IPTV / Video / YouTube URL Modal -->
+    <div id="modal-stream" class="modal-custom-stream">
+        <div class="modal-header">
+            <span class="modal-header-badge">LIVE / VOD</span>
+            <h3 style="color: #64b5f6; font-size: 20px; margin: 0;">Sintonizar Vídeo ou Stream</h3>
+        </div>
+        <p style="font-size: 13.5px; color: #bad7f5; margin: 0; line-height: 1.45;">
+            Insira o link de um vídeo do <strong>YouTube</strong>, stream <strong>IPTV (.m3u8)</strong> ou arquivo de vídeo direto <strong>(.mp4, .webm)</strong>:
+        </p>
+        <div class="modal-input-container">
+            <input type="text" id="stream-url-input" placeholder="Ex: https://www.youtube.com/watch?v=dQw4w9WgXcQ ou .mp4 / .m3u8" autocomplete="off">
+            <button id="btn-clear-stream" class="btn-clear-input" title="Limpar campo">✕</button>
+        </div>
+        <div class="modal-quick-suggestions">
+            <span class="quick-label">Sugestão de teste:</span>
+            <div class="quick-tags">
+                <button type="button" class="btn-quick-tag" data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ">Rick Astley - Never Gonna Give You Up (Rick Roll)</button>
+            </div>
+        </div>
+        <div class="modal-provider-switch-box">
+            <button type="button" class="btn-switch-provider" id="btn-open-login-settings">
+                🔄 Trocar Servidor IPTV / Configurar Conta (Logout)
+            </button>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-modal btn-modal-cancel" id="btn-cancel-stream">Cancelar</button>
+            <button class="btn-modal btn-modal-load" id="btn-load-stream">Sintonizar na TV</button>
+        </div>
+    </div>
+
+    <!-- Playlist Selector Modal (Frutiger Aero 2000s Satellite Menu) -->
+    <div id="modal-playlist" class="modal-playlist-selector" role="dialog" aria-modal="true" aria-labelledby="modal-playlist-title">
+        <div class="modal-header">
+            <span class="modal-header-badge">SATELLITE LINEUP</span>
+            <h3 id="modal-playlist-title" style="color: #64b5f6; font-size: 20px; margin: 0;">Alternar Playlist de Canais</h3>
+        </div>
+        <p style="font-size: 13.5px; color: #bad7f5; margin: 0; line-height: 1.45;">
+            Selecione a lista de transmissão via satélite para exibir no Guia de Programação e na TV:
+        </p>
+
+        <div class="playlist-options-list">
+            <!-- Opção Brasil -->
+            <div class="playlist-card" data-playlist="br" id="playlist-opt-br" tabindex="0">
+                <div class="playlist-flag-bubble">
+                    <span class="playlist-flag-icon">BR</span>
+                </div>
+                <div class="playlist-card-content">
+                    <div class="playlist-card-title-row">
+                        <span class="playlist-title">Canais Brasileiros</span>
+                        <div class="playlist-card-badges">
+                            <span class="playlist-current-tag">● NO AR</span>
+                            <span class="playlist-action-badge">SINTONIZAR</span>
+                        </div>
+                    </div>
+                    <span class="playlist-desc">Transmissão ao vivo do Brasil • IPTV & EPG Nacional</span>
+                </div>
+            </div>
+
+            <!-- Opção EUA -->
+            <div class="playlist-card" data-playlist="us" id="playlist-opt-us" tabindex="0">
+                <div class="playlist-flag-bubble">
+                    <span class="playlist-flag-icon">US</span>
+                </div>
+                <div class="playlist-card-content">
+                    <div class="playlist-card-title-row">
+                        <span class="playlist-title">American Channels</span>
+                        <div class="playlist-card-badges">
+                            <span class="playlist-current-tag">● NO AR</span>
+                            <span class="playlist-action-badge">SINTONIZAR</span>
+                        </div>
+                    </div>
+                    <span class="playlist-desc">United States Live TV • News, Entertainment & Fast Streams</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="playlist-modal-quick-hint">
+            <span class="orb-dot orb-yellow"></span>
+            <span>Dica: Pressione o botão <strong>Amarelo</strong> ou use as setas ▲/▼ + <strong>OK</strong> para alternar.</span>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn-modal btn-modal-cancel" id="btn-cancel-playlist">Cancelar</button>
+            <button class="btn-modal btn-modal-load" id="btn-confirm-playlist">Sintonizar Playlist</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <script src="audio.js"></script>
+    <script src="channels.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

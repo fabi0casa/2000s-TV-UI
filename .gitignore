@@ -4,3 +4,12 @@ api/data/*
 
 # Dependências
 node_modules/
+.expo/
+.expo-shared/
+dist/
+web-build/
+*.orig.*
+
+# Android / iOS local builds
+android/
+ios/
