@@ -7,20 +7,19 @@ const iconsDir = path.join(webDir, 'icons');
 // Read used icons as base64
 const usedIconNames = [
     'antena.png',
-    'aquanet-nosignal.png',
     'aquanet-nosignal-1.png',
+    'aquanet-nosignal-2.png',
     'volume-max.png',
     'volume-med.png',
     'volume-min.png',
     'volume-zero.png',
-    'tv.png'
+    'tv.png',
+    'icon.png'
 ];
 
 const icons = {};
 for (const file of usedIconNames) {
-    // If aquanet-nosignal-1.png is requested, we can alias to the optimized aquanet-nosignal.png
-    const actualFile = (file === 'aquanet-nosignal-1.png') ? 'aquanet-nosignal.png' : file;
-    const filePath = path.join(iconsDir, actualFile);
+    const filePath = path.join(iconsDir, file);
     if (fs.existsSync(filePath)) {
         const buf = fs.readFileSync(filePath);
         icons[file] = `data:image/png;base64,${buf.toString('base64')}`;
@@ -33,6 +32,9 @@ const css = fs.readFileSync(path.join(webDir, 'style.css'), 'utf-8');
 const audioJs = fs.readFileSync(path.join(webDir, 'audio.js'), 'utf-8');
 const channelsJs = fs.readFileSync(path.join(webDir, 'channels.js'), 'utf-8');
 const appJs = fs.readFileSync(path.join(webDir, 'app.js'), 'utf-8');
+
+// Clean up any remaining references to aquanet-nosignal.png
+html = html.split('aquanet-nosignal.png').join('aquanet-nosignal-1.png');
 
 // Replace icon references with base64
 for (const [name, dataUri] of Object.entries(icons)) {

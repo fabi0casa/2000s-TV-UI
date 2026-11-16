@@ -2967,17 +2967,43 @@ class RetroTVController {
         let startTime = 0;
         let lastTapTime = 0;
         let isSwiping = false;
+        let longPressTimer = null;
+        let isLongPress = false;
+        let isTwoFinger = false;
 
         target.addEventListener('touchstart', (e) => {
             // Ignore touch inside interactive modals
             if (e.target.closest('#modal-login') || e.target.closest('#modal-stream') || e.target.closest('#modal-playlist')) {
                 return;
             }
+
+            if (e.touches.length === 2) {
+                isTwoFinger = true;
+                if (longPressTimer) clearTimeout(longPressTimer);
+                return;
+            }
+
             if (e.touches.length === 1) {
                 startX = e.touches[0].clientX;
                 startY = e.touches[0].clientY;
                 startTime = Date.now();
                 isSwiping = true;
+                isLongPress = false;
+                isTwoFinger = false;
+
+                // Long Press (500ms) gesture to toggle Guide
+                if (longPressTimer) clearTimeout(longPressTimer);
+                longPressTimer = setTimeout(() => {
+                    isLongPress = true;
+                    if (this.isGuideOpen) {
+                        this.closeGuide();
+                    } else {
+                        this.openGuide();
+                    }
+                    if (window.AudioEngine && window.AudioEngine.playClick) {
+                        window.AudioEngine.playClick();
+                    }
+                }, 500);
             }
         }, { passive: true });
 
@@ -2985,12 +3011,40 @@ class RetroTVController {
             if (!isSwiping || e.touches.length !== 1) return;
             const deltaY = Math.abs(e.touches[0].clientY - startY);
             const deltaX = Math.abs(e.touches[0].clientX - startX);
+
+            // Cancel long press if finger moved
+            if (deltaY > 12 || deltaX > 12) {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            }
+
             if (deltaY > 10 || deltaX > 10) {
                 if (e.cancelable) e.preventDefault();
             }
         }, { passive: false });
 
         target.addEventListener('touchend', (e) => {
+            if (longPressTimer) {
+                clearTimeout(longPressTimer);
+                longPressTimer = null;
+            }
+
+            // Two-finger tap detection -> Toggle Guide
+            if (isTwoFinger) {
+                isTwoFinger = false;
+                if (Date.now() - startTime < 450) {
+                    this.toggleGuide();
+                }
+                return;
+            }
+
+            if (isLongPress) {
+                isLongPress = false;
+                return;
+            }
+
             if (!isSwiping) return;
             isSwiping = false;
 
@@ -3003,14 +3057,42 @@ class RetroTVController {
             const absY = Math.abs(diffY);
             const duration = Date.now() - startTime;
             const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
 
-            // Swipe from left edge (< 45px) opens Mini Guide
-            if (startX < 45 && diffX > 60 && absX > absY) {
-                if (!this.isMiniGuideOpen) this.openMiniGuide();
+            // 1. Swipe from left edge (< 50px) opens Mini Guide
+            if (startX < 50 && diffX > 55 && absX > absY) {
+                if (!this.isMiniGuideOpen && !this.isGuideOpen) this.openMiniGuide();
                 return;
             }
 
-            // Horizontal Swipe (Change Channel or Navigate Banner/Guide)
+            // 2. Swipe from right edge (> screenW - 60px) opens/closes Full Guide
+            if (startX > (screenW - 60) && diffX < -45 && absX > absY) {
+                if (this.isGuideOpen) this.closeGuide();
+                else this.openGuide();
+                return;
+            }
+
+            // 3. Swipe up from bottom edge (> screenH - 75px) opens Full Guide
+            if (startY > (screenH - 75) && diffY < -40 && absY > absX) {
+                if (!this.isGuideOpen) this.openGuide();
+                return;
+            }
+
+            // 4. Swipe down from top edge (< 75px) opens/closes Full Guide
+            if (startY < 75 && diffY > 40 && absY > absX) {
+                if (this.isGuideOpen) this.closeGuide();
+                else this.openGuide();
+                return;
+            }
+
+            // 5. Center vertical swipe up opens Full Guide
+            const isCenterZone = startX >= (screenW * 0.35) && startX <= (screenW * 0.65);
+            if (isCenterZone && diffY < -50 && absY > absX && !this.isGuideOpen && !this.isMiniGuideOpen) {
+                this.openGuide();
+                return;
+            }
+
+            // 6. Horizontal Swipe (Change Channel or Navigate Banner/Guide)
             if (absX > 50 && absX > absY) {
                 if (diffX > 0) {
                     if (this.isGuideOpen) this.handleRightPress();
@@ -3022,7 +3104,7 @@ class RetroTVController {
                 return;
             }
 
-            // Vertical Swipe
+            // 7. Vertical Swipe
             if (absY > 40 && absY > absX) {
                 const isLeftSide = startX < (screenW * 0.45);
                 if (isLeftSide && !this.isGuideOpen && !this.isMiniGuideOpen) {
@@ -3037,7 +3119,7 @@ class RetroTVController {
                 return;
             }
 
-            // Single and Double Tap detection
+            // 8. Single and Double Tap detection
             if (absX < 20 && absY < 20 && duration < 350) {
                 const now = Date.now();
                 if (now - lastTapTime < 320) {

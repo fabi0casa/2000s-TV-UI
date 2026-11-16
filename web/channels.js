@@ -590,11 +590,15 @@ class TVFeedGenerator {
         this.noiseImgData = this.noiseCtx.createImageData(320, 240);
         this.noise32 = new Uint32Array(this.noiseImgData.data.buffer);
 
-        // No Signal alternating images
+        // No Signal alternating images (aquanet-nosignal-1.png & aquanet-nosignal-2.png)
         this.noSignalImg1 = new Image();
-        this.noSignalImg1.src = 'icons/aquanet-nosignal-1.png';
+        this.noSignalImg1.src = (typeof window !== 'undefined' && window.__AQUANET_ICONS && window.__AQUANET_ICONS['aquanet-nosignal-1.png'])
+            ? window.__AQUANET_ICONS['aquanet-nosignal-1.png']
+            : 'icons/aquanet-nosignal-1.png';
         this.noSignalImg2 = new Image();
-        this.noSignalImg2.src = 'icons/aquanet-nosignal-2.png';
+        this.noSignalImg2.src = (typeof window !== 'undefined' && window.__AQUANET_ICONS && window.__AQUANET_ICONS['aquanet-nosignal-2.png'])
+            ? window.__AQUANET_ICONS['aquanet-nosignal-2.png']
+            : 'icons/aquanet-nosignal-2.png';
 
         // Bouncing state for No Signal
         this.bounceBox = {
@@ -742,7 +746,10 @@ class TVFeedGenerator {
         }
 
         const isFrame1 = (Math.floor(Date.now() / 1000) % 2 === 0);
-        const currentImg = isFrame1 ? this.noSignalImg1 : this.noSignalImg2;
+        let currentImg = isFrame1 ? this.noSignalImg1 : this.noSignalImg2;
+        if (!currentImg || !currentImg.complete || currentImg.naturalWidth === 0) {
+            currentImg = (currentImg === this.noSignalImg1) ? this.noSignalImg2 : this.noSignalImg1;
+        }
 
         if (currentImg && currentImg.complete && currentImg.naturalWidth > 0) {
             const aspect = currentImg.naturalHeight / currentImg.naturalWidth;
