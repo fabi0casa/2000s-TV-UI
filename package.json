@@ -8,11 +8,14 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "bundle:web": "node bundle-web.js",
+    "mock": "node scripts/xtream-mock.js",
+    "test:xtream": "node scripts/xtream-smoke.js",
     "prebuild": "expo prebuild"
   },
   "dependencies": {
     "expo": "~54.0.38",
     "expo-asset": "~12.0.14",
+    "expo-build-properties": "~1.0.10",
     "expo-constants": "~18.0.14",
     "expo-navigation-bar": "~5.0.10",
     "expo-screen-orientation": "~9.0.9",
@@ -27,7 +30,8 @@
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@expo/metro-runtime": "~6.1.2",
-    "babel-preset-expo": "~54.0.10"
+    "babel-preset-expo": "~54.0.10",
+    "hls.js": "^1.7.4"
   },
   "private": true
 }

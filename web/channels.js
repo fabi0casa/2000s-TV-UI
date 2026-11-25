@@ -87,13 +87,153 @@ function decodeHtmlEntities(str) {
         .replace(/&#xE7;/gi, 'ç');
 }
 
+function stripEmoji(value) {
+    if (!value) return '';
+    try {
+        return String(value)
+            .replace(/\p{Extended_Pictographic}/gu, '')
+            .replace(/[\uFE0F\u200D\u20E3]/g, '');
+    } catch (e) {
+        return String(value).replace(/[\u2600-\u27BF]|[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '');
+    }
+}
+
 function cleanChannelName(rawName) {
     if (!rawName) return 'CANAL';
-    return decodeHtmlEntities(rawName)
+    return stripEmoji(decodeHtmlEntities(rawName))
         .replace(/CANAIS:\s*/gi, '')
-        .replace(/[✨⚽🔴🟢📺]/g, '')
-        .trim();
+        .trim() || 'CANAL';
 }
+
+function buildChannelKey(rawCh, index) {
+    if (!rawCh) return `channel-${index}`;
+    if (rawCh.key) return String(rawCh.key);
+    if (rawCh.stream_id) return `x:${rawCh.stream_id}`;
+    if (rawCh.tvgId) return `epg:${rawCh.tvgId}:${index}`;
+    const urlPart = rawCh.streamUrl || rawCh.url || '';
+    if (urlPart) return `url:${urlPart}`;
+    return `name:${stripEmoji(rawCh.name || rawCh.title || '')}-${index}`;
+}
+
+/**
+ * HTTP client unificado.
+ * No APK usa a ponte nativa do React Native (sem CORS / sem bloqueio de HTTP).
+ * No navegador usa fetch normalmente.
+ */
+const AquanetHttp = {
+    _nextId: 1,
+    _pending: new Map(),
+
+    isNativeAvailable() {
+        return typeof window !== 'undefined' &&
+            window.ReactNativeWebView &&
+            typeof window.ReactNativeWebView.postMessage === 'function';
+    },
+
+    async request(url, options = {}) {
+        const method = (options.method || 'GET').toUpperCase();
+        const headers = options.headers || {};
+        const timeoutMs = options.timeout || 25000;
+
+        if (this.isNativeAvailable()) {
+            return this.nativeRequest(url, { method, headers, timeoutMs });
+        }
+
+        const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+        try {
+            const res = await fetch(url, {
+                method,
+                headers,
+                signal: controller ? controller.signal : undefined
+            });
+            const text = await res.text();
+            return {
+                ok: res.ok,
+                status: res.status,
+                headers: {},
+                text
+            };
+        } finally {
+            if (timer) clearTimeout(timer);
+        }
+    },
+
+    nativeRequest(url, { method, headers, timeoutMs }) {
+        return new Promise((resolve, reject) => {
+            const id = this._nextId++;
+            const timer = setTimeout(() => {
+                this._pending.delete(id);
+                reject(new Error(`Tempo esgotado ao conectar em ${url}`));
+            }, timeoutMs);
+
+            this._pending.set(id, { resolve, reject, timer });
+
+            try {
+                window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'HTTP_REQUEST',
+                    id,
+                    url,
+                    method,
+                    headers
+                }));
+            } catch (e) {
+                clearTimeout(timer);
+                this._pending.delete(id);
+                reject(e);
+            }
+        });
+    },
+
+    handleNativeResponse(payload) {
+        if (!payload) return;
+        const pending = this._pending.get(payload.id);
+        if (!pending) return;
+        this._pending.delete(payload.id);
+        clearTimeout(pending.timer);
+
+        if (payload.error) {
+            pending.reject(new Error(payload.error));
+            return;
+        }
+        pending.resolve({
+            ok: Boolean(payload.ok),
+            status: Number(payload.status) || 0,
+            headers: payload.headers || {},
+            text: typeof payload.body === 'string' ? payload.body : ''
+        });
+    },
+
+    async json(url, options = {}) {
+        const res = await this.request(url, options);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status} em ${url}`);
+        }
+        try {
+            return JSON.parse(res.text);
+        } catch (e) {
+            throw new Error('Resposta inválida do servidor (não é JSON).');
+        }
+    },
+
+    async text(url, options = {}) {
+        const res = await this.request(url, options);
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status} em ${url}`);
+        }
+        return res.text;
+    }
+};
+
+window.AquanetHttp = AquanetHttp;
+window.__aquanetNativeHttpResolve = function (payload) {
+    try {
+        if (payload && typeof payload === 'string') payload = JSON.parse(payload);
+        AquanetHttp.handleNativeResponse(payload);
+    } catch (e) {
+        console.warn('[HTTP Bridge] Resposta inválida:', e);
+    }
+};
 
 /**
  * Parser de Listas M3U / M3U8 Client-side
@@ -207,66 +347,152 @@ class XtreamCodesClient {
         return clean.replace(/\/+$/, '');
     }
 
-    static async authenticate(server, username, password) {
+    static apiUrl(server, username, password, action = '', extra = '') {
         const base = this.sanitizeUrl(server);
-        const authUrl = `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-        
-        const res = await fetch(authUrl);
-        if (!res.ok) throw new Error(`Falha de conexão com o servidor Xtream: HTTP ${res.status}`);
-        
-        const data = await res.json();
-        if (!data || data.user_info?.auth === 0 || data.user_info?.status === 'Disabled') {
-            throw new Error(data.user_info?.message || 'Credenciais inválidas no servidor Xtream Codes.');
+        let url = `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+        if (action) url += `&action=${encodeURIComponent(action)}`;
+        if (extra) url += `&${extra}`;
+        return url;
+    }
+
+    static async authenticate(server, username, password) {
+        const authUrl = this.apiUrl(server, username, password);
+        let data;
+        try {
+            data = await AquanetHttp.json(authUrl);
+        } catch (err) {
+            throw new Error(`Falha de conexão com o servidor Xtream: ${err.message}`);
+        }
+
+        if (!data || !data.user_info) {
+            throw new Error('O servidor não retornou dados de usuário. Verifique a URL.');
+        }
+        if (Number(data.user_info.auth) === 0 || data.user_info.status === 'Disabled' || data.user_info.status === 'Expired') {
+            throw new Error(data.user_info.message || 'Credenciais inválidas, conta desativada ou expirada.');
         }
 
         return {
             userInfo: data.user_info,
-            serverInfo: data.server_info
+            serverInfo: data.server_info || {}
         };
     }
 
     static async getLiveStreams(server, username, password) {
-        const base = this.sanitizeUrl(server);
-        const streamsUrl = `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_streams`;
-        
-        const res = await fetch(streamsUrl);
-        if (!res.ok) throw new Error(`Erro ao baixar canais Xtream: HTTP ${res.status}`);
-        
-        const data = await res.json();
+        const data = await AquanetHttp.json(this.apiUrl(server, username, password, 'get_live_streams'));
         if (!Array.isArray(data)) return [];
         return data;
     }
 
     static async getCategories(server, username, password) {
         try {
-            const base = this.sanitizeUrl(server);
-            const catUrl = `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_live_categories`;
-            const res = await fetch(catUrl);
-            if (res.ok) return await res.json();
+            const data = await AquanetHttp.json(this.apiUrl(server, username, password, 'get_live_categories'));
+            return Array.isArray(data) ? data : [];
         } catch (e) {
             console.warn('[Xtream] Falha ao carregar categorias:', e);
+            return [];
         }
-        return [];
+    }
+
+    static async getVodCategories(server, username, password) {
+        try {
+            const data = await AquanetHttp.json(this.apiUrl(server, username, password, 'get_vod_categories'));
+            return Array.isArray(data) ? data : [];
+        } catch (e) {
+            console.warn('[Xtream] Falha ao carregar categorias de filmes:', e);
+            return [];
+        }
+    }
+
+    static async getVodStreams(server, username, password) {
+        const data = await AquanetHttp.json(this.apiUrl(server, username, password, 'get_vod_streams'));
+        return Array.isArray(data) ? data : [];
+    }
+
+    static async getSeriesCategories(server, username, password) {
+        try {
+            const data = await AquanetHttp.json(this.apiUrl(server, username, password, 'get_series_categories'));
+            return Array.isArray(data) ? data : [];
+        } catch (e) {
+            console.warn('[Xtream] Falha ao carregar categorias de séries:', e);
+            return [];
+        }
+    }
+
+    static async getSeries(server, username, password) {
+        const data = await AquanetHttp.json(this.apiUrl(server, username, password, 'get_series'));
+        return Array.isArray(data) ? data : [];
+    }
+
+    static async getSeriesInfo(server, username, password, seriesId) {
+        const data = await AquanetHttp.json(
+            this.apiUrl(server, username, password, 'get_series_info', `series_id=${encodeURIComponent(seriesId)}`)
+        );
+        return data || {};
+    }
+
+    static decodeEpgText(value) {
+        if (!value) return '';
+        const raw = String(value);
+        // Xtream costuma enviar título/descrição do EPG em base64.
+        if (/^[A-Za-z0-9+/=\s]+$/.test(raw) && raw.length > 8) {
+            try {
+                const binary = atob(raw.replace(/\s+/g, ''));
+                if (typeof TextDecoder !== 'undefined') {
+                    const bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    const decoded = new TextDecoder('utf-8').decode(bytes);
+                    if (decoded && /[a-zA-ZÀ-ÿ0-9]/.test(decoded)) return decoded;
+                }
+                if (binary && /[a-zA-ZÀ-ÿ0-9]/.test(binary)) return binary;
+            } catch (e) {}
+        }
+        return raw;
     }
 
     static async getShortEpg(server, username, password, streamId) {
         try {
-            const base = this.sanitizeUrl(server);
-            const epgUrl = `${base}/player_api.php?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&action=get_short_epg&stream_id=${streamId}&limit=10`;
-            const res = await fetch(epgUrl);
-            if (res.ok) {
-                const data = await res.json();
-                return data.epg_listings || [];
-            }
+            const data = await AquanetHttp.json(
+                this.apiUrl(server, username, password, 'get_short_epg', `stream_id=${encodeURIComponent(streamId)}&limit=24`)
+            );
+            const listings = data && Array.isArray(data.epg_listings) ? data.epg_listings : [];
+            return listings.map(item => {
+                let start = null;
+                let stop = null;
+                if (item.start_timestamp) start = new Date(Number(item.start_timestamp) * 1000);
+                else if (item.start) start = new Date(String(item.start).replace(' ', 'T'));
+                if (item.stop_timestamp) stop = new Date(Number(item.stop_timestamp) * 1000);
+                else if (item.end) stop = new Date(String(item.end).replace(' ', 'T'));
+
+                const startIso = start && !isNaN(start.getTime()) ? start.toISOString() : null;
+                const stopIso = stop && !isNaN(stop.getTime()) ? stop.toISOString() : null;
+                if (!startIso || !stopIso) return null;
+
+                return {
+                    title: this.decodeEpgText(item.title),
+                    description: this.decodeEpgText(item.description),
+                    start: startIso,
+                    stop: stopIso
+                };
+            }).filter(Boolean);
         } catch (e) {
             console.warn('[Xtream] Falha ao carregar EPG do canal:', streamId, e);
+            return [];
         }
-        return [];
     }
 
     static buildStreamUrl(server, username, password, streamId, container = 'ts') {
         const base = this.sanitizeUrl(server);
         return `${base}/live/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${streamId}.${container}`;
+    }
+
+    static buildVodUrl(server, username, password, streamId, container = 'mp4') {
+        const base = this.sanitizeUrl(server);
+        return `${base}/movie/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${streamId}.${container || 'mp4'}`;
+    }
+
+    static buildSeriesUrl(server, username, password, episodeId, container = 'mp4') {
+        const base = this.sanitizeUrl(server);
+        return `${base}/series/${encodeURIComponent(username)}/${encodeURIComponent(password)}/${episodeId}.${container || 'mp4'}`;
     }
 }
 
@@ -288,18 +514,13 @@ class EzhomeTechClient {
         // Primeiro tenta endpoint JSON do EzhomeTech
         const jsonUrl = `${base}/get_live?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
         try {
-            const res = await fetch(jsonUrl);
-            if (res.ok) {
-                const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) return data;
-            }
+            const data = await AquanetHttp.json(jsonUrl);
+            if (Array.isArray(data) && data.length > 0) return data;
         } catch (e) {}
 
         // Fallback: playlist M3U gerada pelo EzhomeTech
         const m3uUrl = `${base}/playlist.m3u?username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-        const m3uRes = await fetch(m3uUrl);
-        if (!m3uRes.ok) throw new Error(`Falha ao conectar ao servidor EzhomeTech: HTTP ${m3uRes.status}`);
-        const text = await m3uRes.text();
+        const text = await AquanetHttp.text(m3uUrl);
         return parseM3U(text);
     }
 }
@@ -326,19 +547,14 @@ class FastoCloudClient {
 
         const apiUrl = `${base}/api/v1/streams`;
         try {
-            const res = await fetch(apiUrl, { headers });
-            if (res.ok) {
-                const data = await res.json();
-                if (Array.isArray(data?.streams)) return data.streams;
-                if (Array.isArray(data)) return data;
-            }
+            const data = await AquanetHttp.json(apiUrl, { headers });
+            if (Array.isArray(data?.streams)) return data.streams;
+            if (Array.isArray(data)) return data;
         } catch (e) {}
 
         // Fallback playlist HLS/M3U do FastoCloud
         const m3uUrl = `${base}/playlist.m3u8`;
-        const resM3u = await fetch(m3uUrl, { headers });
-        if (!resM3u.ok) throw new Error(`Falha ao conectar ao servidor FastoCloud: HTTP ${resM3u.status}`);
-        const text = await resM3u.text();
+        const text = await AquanetHttp.text(m3uUrl, { headers });
         return parseM3U(text);
     }
 }
@@ -394,16 +610,44 @@ const DEMO_CHANNELS = [
 /**
  * Transforma item bruto de qualquer provedor em objeto padrão do canal
  */
-function transformGenericChannel(rawCh, index) {
+function transformGenericChannel(rawCh, index, providerType = 'iptv') {
     const channelNum = index;
     const channelIdStr = String(channelNum).padStart(3, '0');
     const cleanName = cleanChannelName(rawCh.name || rawCh.title || `CANAL ${channelNum}`);
     const shortCode = cleanName.toUpperCase().slice(0, 14);
+    const categoryName = cleanChannelName(rawCh.category || rawCh.category_name || 'Geral');
+    const categoryId = rawCh.categoryId || rawCh.category_id || `group:${categoryName}`;
+    const channelKey = buildChannelKey(rawCh, index);
 
+    const realPrograms = Array.isArray(rawCh.epgPrograms) ? rawCh.epgPrograms : [];
+    let hasRealEpg = realPrograms.length > 0;
     let schedule = [];
-    if (Array.isArray(rawCh.schedule) && rawCh.schedule.length > 0) {
-        schedule = rawCh.schedule;
-    } else {
+
+    if (hasRealEpg) {
+        schedule = realPrograms
+            .filter(p => p && p.start && p.stop)
+            .map(p => {
+                const startMs = new Date(p.start).getTime();
+                const stopMs = new Date(p.stop).getTime();
+                const nowMs = Date.now();
+                return {
+                    time: formatTime12(p.start),
+                    timeBadge: formatTimeBadge(p.start),
+                    timeSlot: formatTimeSlot(p.start, p.stop),
+                    title: cleanChannelName(p.title || 'Programa ao Vivo'),
+                    description: stripEmoji(p.description || ''),
+                    category: p.category || categoryName,
+                    rating: p.rating || 'LIVRE',
+                    current: nowMs >= startMs && nowMs < stopMs,
+                    start: new Date(p.start).toISOString(),
+                    stop: new Date(p.stop).toISOString()
+                };
+            })
+            .sort((a, b) => new Date(a.start) - new Date(b.start));
+        hasRealEpg = schedule.length > 0;
+    }
+
+    if (!hasRealEpg) {
         const now = new Date();
         const baseH = now.getHours();
         const start1 = new Date(now);
@@ -421,7 +665,7 @@ function transformGenericChannel(rawCh, index) {
                 timeBadge: formatTimeBadge(start1),
                 timeSlot: formatTimeSlot(start1, stop1),
                 title: `${cleanName} - Transmissão ao Vivo`,
-                description: `Transmissão contínua de ${cleanName}. Categoria: ${rawCh.category || 'Geral'}.`,
+                description: `Transmissão contínua de ${cleanName}. Categoria: ${categoryName}.`,
                 rating: "LIVRE",
                 current: true,
                 start: start1.toISOString(),
@@ -449,21 +693,24 @@ function transformGenericChannel(rawCh, index) {
     return {
         id: channelIdStr,
         number: channelNum,
+        key: channelKey,
         slug: rawCh.stream_id ? String(rawCh.stream_id) : `ch-${channelNum}`,
+        providerType,
+        categoryId,
+        category: categoryName,
         code: shortCode,
         name: cleanName,
         title: progTitle,
         timeSlot: timeSlotStr,
         language: "Português",
         rating: "LIVRE",
-        category: rawCh.category || rawCh.category_name || "Geral",
         description: progDesc,
         logo: rawCh.logo || rawCh.stream_icon || rawCh.tvgLogo || "",
         streamUrl: rawCh.streamUrl || rawCh.url || "",
         liveUrl: rawCh.streamUrl || rawCh.url || "",
         type: "iptv",
         epg: {
-            hasEpg: schedule.length > 0
+            hasEpg: hasRealEpg
         },
         schedule: schedule
     };
@@ -500,62 +747,117 @@ class GenericIPTVManager {
         if (!config) throw new Error('Configuração de provedor ausente.');
 
         let rawChannels = [];
+        let providerCategories = [];
+        let meta = {};
         const type = config.type; // 'xtream' | 'ezhome' | 'fasto' | 'm3u' | 'demo'
 
         switch (type) {
             case 'xtream': {
-                await XtreamCodesClient.authenticate(config.server, config.username, config.password);
+                const auth = await XtreamCodesClient.authenticate(config.server, config.username, config.password);
                 const categories = await XtreamCodesClient.getCategories(config.server, config.username, config.password);
                 const catMap = new Map();
-                if (Array.isArray(categories)) {
-                    categories.forEach(c => catMap.set(String(c.category_id), c.category_name));
-                }
+                categories.forEach(c => catMap.set(String(c.category_id), cleanChannelName(c.category_name)));
 
                 const streams = await XtreamCodesClient.getLiveStreams(config.server, config.username, config.password);
                 rawChannels = streams.map(s => {
-                    const catName = catMap.get(String(s.category_id)) || 'Geral';
+                    const catId = String(s.category_id || 'general');
+                    const catName = catMap.get(catId) || 'Geral';
                     const streamUrl = XtreamCodesClient.buildStreamUrl(config.server, config.username, config.password, s.stream_id);
                     return {
+                        key: `x:${s.stream_id}`,
                         name: s.name,
                         stream_id: s.stream_id,
+                        categoryId: catId,
                         category: catName,
                         logo: s.stream_icon,
-                        streamUrl: streamUrl
+                        streamUrl: streamUrl,
+                        tvgId: s.epg_channel_id || ''
                     };
                 });
+                providerCategories = categories.map(c => ({ id: String(c.category_id), name: cleanChannelName(c.category_name) }));
+                meta = {
+                    userInfo: auth.userInfo,
+                    serverInfo: auth.serverInfo,
+                    liveCount: rawChannels.length
+                };
                 break;
             }
             case 'ezhome': {
                 const streams = await EzhomeTechClient.getLive(config.server, config.username, config.password);
                 rawChannels = streams.map(s => ({
+                    key: s.stream_id ? `e:${s.stream_id}` : undefined,
                     name: s.name || s.rawTitle,
+                    categoryId: s.groupTitle || s.category || 'ezhome',
                     category: s.category || s.groupTitle || 'Ezhome',
                     logo: s.logo || s.tvgLogo,
-                    streamUrl: s.streamUrl || s.url
+                    streamUrl: s.streamUrl || s.url,
+                    tvgId: s.tvgId || ''
                 }));
+                providerCategories = Array.from(new Set(rawChannels.map(ch => ch.categoryId)))
+                    .map(id => ({ id, name: rawChannels.find(ch => ch.categoryId === id)?.category || id }));
                 break;
             }
             case 'fasto': {
                 const streams = await FastoCloudClient.getStreams(config.server, config.username, config.password);
                 rawChannels = streams.map(s => ({
+                    key: s.stream_id ? `f:${s.stream_id}` : undefined,
                     name: s.name || s.rawTitle,
+                    categoryId: s.groupTitle || s.category || 'fasto',
                     category: s.category || s.groupTitle || 'FastoCloud',
                     logo: s.logo || s.tvgLogo,
-                    streamUrl: s.streamUrl || s.url
+                    streamUrl: s.streamUrl || s.url,
+                    tvgId: s.tvgId || ''
                 }));
+                providerCategories = Array.from(new Set(rawChannels.map(ch => ch.categoryId)))
+                    .map(id => ({ id, name: rawChannels.find(ch => ch.categoryId === id)?.category || id }));
                 break;
             }
             case 'm3u': {
                 if (!config.m3uUrl) throw new Error('A URL da lista M3U é obrigatória.');
-                const res = await fetch(config.m3uUrl);
-                if (!res.ok) throw new Error(`Falha ao baixar lista M3U: HTTP ${res.status}`);
-                const text = await res.text();
+                const text = await AquanetHttp.text(config.m3uUrl);
                 rawChannels = parseM3U(text);
+
+                // EPG XMLTV opcional
+                if (config.epgUrl) {
+                    try {
+                        const xml = await AquanetHttp.text(config.epgUrl);
+                        const epgMap = parseXMLTV(xml);
+                        rawChannels.forEach(ch => {
+                            const programs = epgMap.get(ch.tvgId) || epgMap.get(ch.tvgName) || [];
+                            if (programs.length) ch.epgPrograms = programs;
+                        });
+                    } catch (e) {
+                        console.warn('[M3U] Não foi possível carregar o EPG XMLTV:', e);
+                    }
+                }
+
+                rawChannels = rawChannels.map((ch, idx) => ({
+                    key: ch.tvgId ? `m:${ch.tvgId}:${idx}` : `m:${ch.streamUrl}`,
+                    name: ch.name,
+                    categoryId: `group:${cleanChannelName(ch.category || 'Geral')}`,
+                    category: cleanChannelName(ch.category || 'Geral'),
+                    logo: ch.tvgLogo,
+                    streamUrl: ch.streamUrl,
+                    tvgId: ch.tvgId,
+                    epgPrograms: ch.epgPrograms || []
+                }));
+                providerCategories = Array.from(new Set(rawChannels.map(ch => ch.categoryId)))
+                    .map(id => ({ id, name: rawChannels.find(ch => ch.categoryId === id)?.category || id }));
                 break;
             }
             case 'demo':
             default: {
-                rawChannels = DEMO_CHANNELS;
+                rawChannels = DEMO_CHANNELS.map((ch, idx) => ({
+                    key: `demo:${idx + 1}`,
+                    name: ch.name,
+                    categoryId: `demo:${ch.category || 'Geral'}`,
+                    category: ch.category || 'Geral',
+                    logo: ch.logo,
+                    streamUrl: ch.streamUrl,
+                    tvgId: ch.epgId || ''
+                }));
+                providerCategories = Array.from(new Set(rawChannels.map(ch => ch.categoryId)))
+                    .map(id => ({ id, name: rawChannels.find(ch => ch.categoryId === id)?.category || id }));
                 break;
             }
         }
@@ -565,8 +867,31 @@ class GenericIPTVManager {
         }
 
         // Converte para objetos de canais do player
-        const channels = rawChannels.map((ch, idx) => transformGenericChannel(ch, idx + 1));
-        return channels;
+        const channels = rawChannels.map((ch, idx) => transformGenericChannel(ch, idx + 1, type));
+
+        const counts = new Map();
+        channels.forEach(ch => counts.set(ch.categoryId, (counts.get(ch.categoryId) || 0) + 1));
+
+        const categoryList = [];
+        providerCategories.forEach(cat => {
+            if (counts.get(cat.id)) categoryList.push({ id: cat.id, name: cat.name, count: counts.get(cat.id) });
+        });
+        // Categorias que apareceram nos canais mas não vieram na lista oficial
+        counts.forEach((count, id) => {
+            if (!categoryList.some(c => c.id === id)) {
+                const ch = channels.find(c => c.categoryId === id);
+                categoryList.push({ id, name: ch ? ch.category : id, count });
+            }
+        });
+        categoryList.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+        return {
+            channels,
+            categories: categoryList,
+            providerType: type,
+            config,
+            meta
+        };
     }
 }
 
@@ -643,9 +968,6 @@ class TVFeedGenerator {
         const ctx = this.ctx;
 
         switch (this.currentType) {
-            case 'youtube':
-                this.renderYouTubePIP(ctx, width, height);
-                break;
             case 'custom':
             case 'stream':
             case 'hls':
@@ -666,42 +988,6 @@ class TVFeedGenerator {
         }
 
         this.animationFrameId = requestAnimationFrame(() => this.loop());
-    }
-
-    renderYouTubePIP(ctx, w, h) {
-        const grad = ctx.createLinearGradient(0, 0, 0, h);
-        grad.addColorStop(0, '#091c36');
-        grad.addColorStop(1, '#020914');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, w, h);
-
-        const cx = w / 2;
-        const cy = h / 2 - 8;
-        const rw = Math.min(w * 0.45, 60);
-        const rh = rw * 0.65;
-
-        ctx.fillStyle = '#ff0000';
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(cx - rw / 2, cy - rh / 2, rw, rh, 8);
-        } else {
-            ctx.rect(cx - rw / 2, cy - rh / 2, rw, rh);
-        }
-        ctx.fill();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.beginPath();
-        const tri = rh * 0.35;
-        ctx.moveTo(cx - tri * 0.5, cy - tri);
-        ctx.lineTo(cx + tri * 0.7, cy);
-        ctx.lineTo(cx - tri * 0.5, cy + tri);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = '#90caf9';
-        ctx.font = 'bold 12px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('YOUTUBE FEED', cx, cy + rh / 2 + 20);
     }
 
     renderStreamPIP(ctx, w, h) {
@@ -809,5 +1095,9 @@ window.XtreamCodesClient = XtreamCodesClient;
 window.EzhomeTechClient = EzhomeTechClient;
 window.FastoCloudClient = FastoCloudClient;
 window.parseM3U = parseM3U;
+window.parseXMLTV = parseXMLTV;
 window.GenericIPTVManager = GenericIPTVManager;
 window.DEMO_CHANNELS = DEMO_CHANNELS;
+window.AquanetHttp = AquanetHttp;
+window.stripEmoji = stripEmoji;
+window.buildChannelKey = buildChannelKey;

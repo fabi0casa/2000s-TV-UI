@@ -90,27 +90,6 @@ html, body {
     display: none;
 }
 
-.youtube-player-container {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 2;
-    display: none;
-    background: #000000;
-    overflow: hidden;
-}
-
-.youtube-player-container iframe {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    border: none;
-}
-
 /* ===================================================================
    FRUTIGER AERO CHANNEL LOADING SPINNER (2000s Glossy Aqua UI)
    =================================================================== */
@@ -1907,43 +1886,7 @@ html, body {
     transform: scale(1.06);
 }
 
-/* Custom Stream / YouTube URL Modal (Frutiger Aero 2000s Glass Dialog) */
-.modal-custom-stream {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 92%;
-    max-width: 500px;
-    background: linear-gradient(180deg, #184282 0%, #113468 45%, #0a234a 52%, #0e2d5c 100%);
-    border: 2px solid rgba(255, 255, 255, 0.55);
-    border-radius: 18px;
-    padding: 24px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), inset 0 2px 3px rgba(255, 255, 255, 0.75), inset 0 -2px 3px rgba(0, 0, 0, 0.5);
-    z-index: 100;
-    display: none;
-    flex-direction: column;
-    gap: 15px;
-    overflow: hidden;
-}
-
-/* Frutiger Aero signature specular gloss arch on modal top */
-.modal-custom-stream::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 45%;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0.04) 100%);
-    border-radius: 18px 18px 0 0;
-    pointer-events: none;
-}
-
-.modal-custom-stream.active {
-    display: flex;
-}
-
+/* Cabeçalho genérico dos modais */
 .modal-header {
     display: flex;
     align-items: center;
@@ -1961,110 +1904,6 @@ html, body {
     letter-spacing: 1px;
     box-shadow: inset 0 1px 1px #ffffff, 0 2px 4px rgba(0, 0, 0, 0.35);
     text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
-}
-
-.modal-input-container {
-    position: relative;
-    width: 100%;
-    display: flex;
-    align-items: center;
-}
-
-.modal-input-container input {
-    width: 100%;
-    padding: 12px 38px 12px 14px;
-    border-radius: 8px;
-    background: #020a17;
-    border: 1.5px solid #3567a2;
-    color: #ffffff;
-    font-size: 14px;
-    outline: none;
-    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.2);
-    transition: border-color 0.2s, box-shadow 0.2s;
-    box-sizing: border-box;
-}
-
-.modal-input-container input:focus {
-    border-color: #8ec5fc;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), 0 0 0 1px #8ec5fc, 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.btn-clear-input {
-    position: absolute;
-    right: 10px;
-    background: linear-gradient(180deg, #e3effa 0%, #b3d2f0 100%);
-    border: 1px solid #1f4a82;
-    color: #0b2654;
-    font-size: 12px;
-    font-weight: 800;
-    cursor: pointer;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: inset 0 1px 1px #ffffff, 0 1px 3px rgba(0, 0, 0, 0.4);
-    transition: all 0.2s;
-}
-
-.btn-clear-input:hover {
-    background: #ffffff;
-    color: #000000;
-    transform: scale(1.08);
-}
-
-.modal-quick-suggestions {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    background: linear-gradient(180deg, rgba(8, 26, 56, 0.65) 0%, rgba(4, 14, 32, 0.75) 100%);
-    padding: 10px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.4);
-}
-
-.quick-label {
-    font-size: 11px;
-    color: #b5d8f7;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
-}
-
-.quick-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-}
-
-.btn-quick-tag {
-    background: linear-gradient(180deg, #2b619e 0%, #1c4b82 48%, #133968 52%, #1b4b82 100%);
-    border: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 6px;
-    color: #ffffff;
-    font-size: 11.5px;
-    font-weight: 600;
-    padding: 5px 10px;
-    cursor: pointer;
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.7), inset 0 -1px 2px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.35);
-    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.8);
-    transition: all 0.2s ease;
-    text-align: left;
-}
-
-.btn-quick-tag:hover {
-    background: linear-gradient(180deg, #3d7cc4 0%, #2965a8 48%, #1c4b82 52%, #265f9e 100%);
-    border-color: rgba(255, 255, 255, 0.65);
-    transform: translateY(-1px);
-    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.9), 0 4px 8px rgba(0, 0, 0, 0.4);
-}
-
-.btn-quick-tag:active {
-    transform: translateY(1px);
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 .modal-actions {
@@ -2902,5 +2741,739 @@ html, body {
     background: linear-gradient(180deg, #2b4e7e 0%, #1d395e 100%);
     color: #ffffff;
     border-color: #64b5f6;
+}
+
+/* ===================================================================
+   CORREÇÕES GERAIS / UTILITÁRIOS
+   =================================================================== */
+.hidden {
+    display: none !important;
+}
+
+.btn-inline-icon {
+    width: 18px;
+    height: 18px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 6px;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.ui-icon {
+    width: 1em;
+    height: 1em;
+    display: inline-block;
+    vertical-align: middle;
+    color: currentColor;
+    fill: currentColor;
+}
+
+.modal-description {
+    font-size: 13.5px;
+    color: #bad7f5;
+    margin: 0;
+    line-height: 1.45;
+}
+
+/* ===================================================================
+   BARRA DE PLAYLISTS E FAVORITOS DO GUIA
+   =================================================================== */
+.epg-playlist-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 20px;
+    background: linear-gradient(180deg, rgba(9, 39, 84, 0.9) 0%, rgba(3, 19, 46, 0.95) 100%);
+    border-bottom: 1px solid #134685;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #2672bd #05244c;
+    flex-shrink: 0;
+}
+
+.epg-playlist-chip {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    border-radius: 7px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    color: #b9d8fa;
+    background: linear-gradient(180deg, #1b3860 0%, #122847 48%, #0b1a32 52%, #132b4d 100%);
+    border: 1px solid rgba(130, 180, 240, 0.25);
+    cursor: pointer;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.epg-playlist-chip:hover {
+    border-color: rgba(160, 210, 255, 0.55);
+    color: #ffffff;
+}
+
+.epg-playlist-chip.active {
+    background: linear-gradient(180deg, #ffd752 0%, #f5a623 48%, #d97706 52%, #f5a623 100%);
+    border-color: #ffe38f;
+    color: #2b1100;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.9), 0 0 10px rgba(245, 166, 35, 0.55);
+}
+
+.epg-reminder-star {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    width: 14px;
+    height: 14px;
+    color: #ffd54f;
+    filter: drop-shadow(0 0 4px rgba(255, 213, 79, 0.9));
+    pointer-events: none;
+    z-index: 2;
+}
+
+.epg-program-block.reminder-set {
+    box-shadow: inset 0 0 0 2px rgba(255, 213, 79, 0.55);
+}
+
+/* ===================================================================
+   MODAL DE VOD (FILMES E SÉRIES)
+   =================================================================== */
+.modal-vod-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 170;
+    display: none;
+    flex-direction: column;
+    background: linear-gradient(180deg, #071f46 0%, #03132e 55%, #020b1c 100%);
+}
+
+.modal-vod-screen.active {
+    display: flex;
+}
+
+.vod-header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 12px 24px;
+    background: linear-gradient(180deg, #2b67be 0%, #174287 60%, #0d2f63 100%);
+    border-bottom: 2px solid #4a90e2;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.vod-header-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 260px;
+}
+
+.vod-header-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 35% 30%, #ffffff 0%, #cae3f7 40%, #5b8dbd 100%);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), inset 0 2px 3px rgba(255, 255, 255, 0.9);
+    color: #0b2654;
+    font-size: 18px;
+}
+
+.vod-title {
+    margin: 3px 0 0;
+    font-size: 19px;
+    color: #ffffff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.vod-tabs {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.vod-tab-btn {
+    padding: 8px 18px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.6px;
+    color: #b0cfee;
+    background: linear-gradient(180deg, #1b3860 0%, #122847 48%, #0b1a32 52%, #132b4d 100%);
+    border: 1.5px solid rgba(130, 180, 240, 0.25);
+    cursor: pointer;
+}
+
+.vod-tab-btn.active {
+    background: linear-gradient(180deg, #ffd752 0%, #f5a623 48%, #d97706 52%, #f5a623 100%);
+    border-color: #ffe38f;
+    color: #2b1100;
+}
+
+.btn-close-modal {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #e3effa 0%, #b3d2f0 100%);
+    border: 1px solid #1f4a82;
+    color: #0b2654;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: inset 0 1px 1px #ffffff, 0 2px 5px rgba(0, 0, 0, 0.4);
+    flex-shrink: 0;
+}
+
+.btn-close-modal:hover {
+    background: #ffffff;
+    color: #000000;
+}
+
+.vod-body {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+.vod-categories {
+    width: 230px;
+    min-width: 230px;
+    overflow-y: auto;
+    padding: 10px;
+    background: linear-gradient(180deg, rgba(8, 32, 70, 0.95) 0%, rgba(3, 16, 38, 0.98) 100%);
+    border-right: 2px solid #134685;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.vod-category-btn {
+    padding: 9px 12px;
+    border-radius: 8px;
+    text-align: left;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #bad7f5;
+    background: rgba(14, 44, 86, 0.55);
+    border: 1px solid rgba(130, 180, 240, 0.18);
+    cursor: pointer;
+}
+
+.vod-category-btn:hover {
+    color: #ffffff;
+    border-color: rgba(160, 210, 255, 0.5);
+}
+
+.vod-category-btn.active {
+    background: linear-gradient(180deg, #2e6db5 0%, #1b4d8a 48%, #133968 52%, #1c5292 100%);
+    border-color: #64b5f6;
+    color: #ffffff;
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 0 10px rgba(100, 181, 246, 0.35);
+}
+
+.vod-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    padding: 14px 20px 20px;
+    overflow-y: auto;
+}
+
+.vod-status {
+    font-size: 13px;
+    color: #bad7f5;
+    padding: 6px 2px 12px;
+}
+
+.vod-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+}
+
+.vod-card {
+    background: linear-gradient(180deg, rgba(16, 44, 88, 0.8) 0%, rgba(7, 21, 46, 0.95) 100%);
+    border: 1.5px solid rgba(140, 195, 255, 0.22);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 3px 8px rgba(0, 0, 0, 0.35);
+    transition: all 0.18s ease;
+}
+
+.vod-card:hover,
+.vod-card.focused {
+    border-color: #00d2ff;
+    transform: translateY(-2px);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.5), 0 0 18px rgba(0, 210, 255, 0.45), 0 5px 14px rgba(0, 0, 0, 0.5);
+}
+
+.vod-poster {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    background: linear-gradient(180deg, #0b2d5e 0%, #03132e 100%);
+    object-fit: cover;
+    display: block;
+}
+
+.vod-poster-fallback {
+    width: 100%;
+    aspect-ratio: 2 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4b78ad;
+    background: linear-gradient(180deg, #0b2d5e 0%, #03132e 100%);
+}
+
+.vod-card-title {
+    padding: 8px 10px 10px;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #e1efff;
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.vod-episodes {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vod-episode-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(16, 44, 88, 0.8) 0%, rgba(7, 21, 46, 0.9) 100%);
+    border: 1px solid rgba(130, 180, 240, 0.22);
+    color: #d6e8fc;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vod-episode-btn:hover {
+    border-color: #64b5f6;
+    color: #ffffff;
+}
+
+.vod-episode-num {
+    font-family: var(--osd-num-font);
+    color: #ffbe38;
+    font-weight: 800;
+    min-width: 34px;
+}
+
+/* ===================================================================
+   CONFIGURAÇÕES
+   =================================================================== */
+.modal-settings {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 94%;
+    max-width: 760px;
+    max-height: 92vh;
+    display: none;
+    flex-direction: column;
+    background: linear-gradient(180deg, #184282 0%, #113468 45%, #0a234a 52%, #0e2d5c 100%);
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    border-radius: 18px;
+    padding: 20px 24px;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9), inset 0 2px 4px rgba(255, 255, 255, 0.75), inset 0 -2px 4px rgba(0, 0, 0, 0.6);
+    z-index: 180;
+    gap: 14px;
+    overflow: hidden;
+}
+
+.modal-settings.active {
+    display: flex;
+}
+
+.settings-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+}
+
+.settings-title {
+    margin: 4px 0 0;
+    font-size: 20px;
+    color: #7ec5ff;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+.settings-tabs {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.settings-tab-btn {
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    color: #b0cfee;
+    background: linear-gradient(180deg, #1b3860 0%, #122847 48%, #0b1a32 52%, #132b4d 100%);
+    border: 1.5px solid rgba(130, 180, 240, 0.25);
+    cursor: pointer;
+}
+
+.settings-tab-btn.active {
+    background: linear-gradient(180deg, #2e6db5 0%, #1b4d8a 48%, #133968 52%, #1c5292 100%);
+    border-color: #64b5f6;
+    color: #ffffff;
+}
+
+.settings-panels {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.settings-panel {
+    display: none;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.settings-panel.active {
+    display: flex;
+}
+
+.settings-info {
+    padding: 12px 14px;
+    border-radius: 9px;
+    background: rgba(3, 16, 38, 0.65);
+    border: 1px solid rgba(100, 180, 255, 0.22);
+    color: #d0e7ff;
+    font-size: 13px;
+    line-height: 1.6;
+    white-space: pre-line;
+}
+
+.settings-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.settings-check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 9px;
+    background: rgba(3, 16, 38, 0.55);
+    border: 1px solid rgba(100, 180, 255, 0.22);
+    color: #e1efff;
+    font-size: 13.5px;
+    cursor: pointer;
+}
+
+.settings-check-row input {
+    width: 18px;
+    height: 18px;
+    accent-color: #f5a623;
+}
+
+.settings-help {
+    font-size: 12px;
+    color: #9fc3e8;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.remote-test-status {
+    padding: 10px 14px;
+    border-radius: 9px;
+    background: rgba(3, 16, 38, 0.65);
+    border: 1px solid rgba(100, 180, 255, 0.22);
+    color: #d0e7ff;
+    font-size: 13px;
+}
+
+.remote-test-status.active {
+    border-color: #38ef7d;
+    box-shadow: 0 0 12px rgba(56, 239, 125, 0.25);
+}
+
+.settings-remote-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.remote-map-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(3, 16, 38, 0.55);
+    border: 1px solid rgba(100, 180, 255, 0.18);
+    font-size: 12.5px;
+    color: #d0e7ff;
+}
+
+.remote-map-key {
+    font-family: var(--osd-num-font);
+    color: #ffbe38;
+    font-weight: 800;
+}
+
+.settings-reminders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.reminder-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(3, 16, 38, 0.55);
+    border: 1px solid rgba(100, 180, 255, 0.18);
+    font-size: 12.5px;
+    color: #d0e7ff;
+}
+
+.reminder-row button {
+    background: transparent;
+    border: 1px solid rgba(255, 120, 120, 0.5);
+    border-radius: 6px;
+    color: #ffb4b4;
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+/* ===================================================================
+   POPUP DE LEMBRETE
+   =================================================================== */
+.reminder-popup {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 6, 16, 0.65);
+    backdrop-filter: blur(4px);
+}
+
+.reminder-card {
+    width: 92%;
+    max-width: 560px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 22px 24px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, #184282 0%, #113468 45%, #0a234a 52%, #0e2d5c 100%);
+    border: 2px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9), inset 0 2px 4px rgba(255, 255, 255, 0.75);
+    animation: aeroModalPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.reminder-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 35% 30%, #ffffff 0%, #cae3f7 40%, #5b8dbd 100%);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    color: #f5a623;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.reminder-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.reminder-title {
+    margin: 6px 0 4px;
+    font-size: 18px;
+    color: #ffffff;
+}
+
+.reminder-channel,
+.reminder-time {
+    margin: 2px 0;
+    font-size: 13px;
+    color: #bad7f5;
+}
+
+.reminder-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+/* Ajustes para muitas playlists no modal */
+.playlist-options-list {
+    max-height: 46vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* ===================================================================
+   AJUSTES FINAIS / ELEMENTOS NOVOS
+   =================================================================== */
+.btn-modal-test {
+    background: linear-gradient(180deg, #7fd4ff 0%, #3b9ede 48%, #1f6ea8 52%, #2b86c4 100%);
+    border: 1.5px solid #144a72;
+    color: #04243a;
+    font-weight: 800;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+    box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 3px 8px rgba(0, 0, 0, 0.4);
+}
+
+.btn-modal-test:hover {
+    background: linear-gradient(180deg, #9ce0ff 0%, #55b3ef 48%, #2b83be 52%, #39a0dd 100%);
+    transform: translateY(-1px);
+}
+
+.login-status-box {
+    max-height: 120px;
+    overflow-y: auto;
+    align-items: flex-start;
+}
+
+.login-status-text {
+    white-space: pre-line;
+    line-height: 1.4;
+}
+
+.epg-empty-state,
+.mini-guide-empty {
+    padding: 18px 22px;
+    font-size: 14px;
+    color: #9fc3e8;
+}
+
+.epg-fav-star {
+    width: 13px;
+    height: 13px;
+    color: #ffd54f;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 4px rgba(255, 213, 79, 0.8));
+}
+
+.mini-guide-fav {
+    width: 12px;
+    height: 12px;
+    color: #ffd54f;
+    flex-shrink: 0;
+}
+
+/* Números de canal com 4 dígitos */
+.epg-channel-cell .cell-ch-num {
+    width: 46px;
+    min-width: 46px;
+}
+
+.epg-row.now-playing .cell-ch-num {
+    width: 46px;
+    min-width: 46px;
+}
+
+/* VOD */
+.vod-card-meta {
+    padding: 0 10px 8px;
+    font-size: 11px;
+    color: #9fc3e8;
+    text-align: left;
+}
+
+.vod-card {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    text-align: left;
+    color: inherit;
+}
+
+.vod-category-btn.focused {
+    outline: 2px solid #64b5f6;
+    outline-offset: 1px;
+}
+
+.vod-episode-btn.focused {
+    border-color: #64b5f6;
+    box-shadow: 0 0 12px rgba(100, 181, 246, 0.35);
+}
+
+.settings-remote-list .remote-map-row button,
+.remote-map-row button {
+    background: transparent;
+    border: 1px solid rgba(120, 190, 255, 0.5);
+    border-radius: 6px;
+    color: #a8d3ff;
+    padding: 3px 8px;
+    font-size: 11px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.remote-map-row button:hover {
+    border-color: #64b5f6;
+    color: #ffffff;
+}
+
+.settings-remote-list {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.login-actions .btn-modal.remote-focused,
+.btn-modal.remote-focused {
+    outline: 2px solid #8ec5fc;
+    outline-offset: 2px;
+}
+
+.settings-panel button:focus,
+.settings-panel input:focus,
+.settings-panel .remote-focused,
+.settings-tab-btn:focus {
+    outline: 2px solid #8ec5fc;
+    outline-offset: 2px;
+}
+
+.vod-body {
+    overflow: hidden;
+}
+
+@media (max-height: 620px) {
+    .playlist-options-list { max-height: 34vh; }
+    .modal-settings { padding: 14px 18px; gap: 10px; }
+    .reminder-card { padding: 16px 18px; }
+    .reminder-actions { flex-direction: row; }
 }
 

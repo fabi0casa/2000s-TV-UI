@@ -40,6 +40,35 @@
                 <stop offset="52%" stop-color="#8395a7" />
                 <stop offset="100%" stop-color="#cad6e4" />
             </linearGradient>
+
+            <!-- Ícones utilitários (sem emojis) -->
+            <symbol id="icon-star" viewBox="0 0 24 24">
+                <path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.4-5.8-3-5.8 3 1.1-6.4L2.6 9.4l6.5-.9z" fill="currentColor"/>
+            </symbol>
+            <symbol id="icon-star-outline" viewBox="0 0 24 24">
+                <path d="M12 3.7l2.3 4.7 5.2.8-3.8 3.7.9 5.2L12 15.6l-4.6 2.5.9-5.2-3.8-3.7 5.2-.8z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+            </symbol>
+            <symbol id="icon-play" viewBox="0 0 24 24">
+                <path d="M7 4.5l12 7.5-12 7.5z" fill="currentColor"/>
+            </symbol>
+            <symbol id="icon-pause" viewBox="0 0 24 24">
+                <path d="M7 4h4v16H7zM13 4h4v16h-4z" fill="currentColor"/>
+            </symbol>
+            <symbol id="icon-stop" viewBox="0 0 24 24">
+                <path d="M5 5h14v14H5z" fill="currentColor"/>
+            </symbol>
+            <symbol id="icon-check" viewBox="0 0 24 24">
+                <path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </symbol>
+            <symbol id="icon-close" viewBox="0 0 24 24">
+                <path d="M5 5l14 14M19 5L5 19" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+            </symbol>
+            <symbol id="icon-forward" viewBox="0 0 24 24">
+                <path d="M4 5l7 7-7 7zM12 5l7 7-7 7z" fill="currentColor"/>
+            </symbol>
+            <symbol id="icon-rewind" viewBox="0 0 24 24">
+                <path d="M20 5l-7 7 7 7zM12 5l-7 7 7 7z" fill="currentColor"/>
+            </symbol>
         </defs>
     </svg>
 
@@ -49,13 +78,8 @@
             <!-- Procedural Channel Canvas Broadcast Feeds -->
             <canvas id="tv-canvas"></canvas>
 
-            <!-- Custom Video Feed Support (for user stream URLs or files) -->
+            <!-- Player de vídeo IPTV / VOD -->
             <video id="custom-video" loop playsinline></video>
-
-            <!-- YouTube IFrame Embed Container -->
-            <div id="youtube-container" class="youtube-player-container">
-                <div id="youtube-player"></div>
-            </div>
 
             <!-- Frutiger Aero Channel Loading Spinner -->
             <div id="channel-loading-spinner" class="channel-loading-overlay hidden">
@@ -73,7 +97,7 @@
             </div>
 
             <!-- CRT Scanlines & Phosphor Bloom Layer -->
-            <div id="crt-layer" class="crt-overlay"></div>
+            <div id="crt-layer" class="crt-overlay disabled"></div>
 
             <!-- ========================================================
                  TOP CHANNEL INFO BANNER (OSD - Inspired by Screenshot 1)
@@ -165,23 +189,23 @@
 
                 <!-- Bottom Row: Favorites & Color Action Hints -->
                 <div class="banner-bottom-row">
-                    <div class="banner-favorites-tag" id="banner-favorites-tag">Playlist: Canais Brasileiros</div>
+                    <div class="banner-favorites-tag" id="banner-favorites-tag">Playlist: Todos os Canais</div>
                     <div class="banner-remote-hints">
-                        <div class="remote-hint-item" id="hint-red-signal">
+                        <div class="remote-hint-item" id="hint-red-vod" title="Filmes e séries do provedor">
                             <span class="orb-dot orb-red"></span>
-                            <span id="hint-sfx-text">Mutar SFX</span>
+                            <span>Filmes &amp; Séries</span>
                         </div>
                         <div class="remote-hint-item" id="hint-green-crt">
                             <span class="orb-dot orb-green"></span>
                             <span>CRT TV Mode</span>
                         </div>
-                        <div class="remote-hint-item" id="hint-options">
+                        <div class="remote-hint-item" id="hint-options" title="Favoritar canal atual">
                             <span class="orb-dot orb-yellow"></span>
-                            <span>TV Options</span>
+                            <span>Favoritar</span>
                         </div>
-                        <div class="remote-hint-item" id="hint-mini-guide">
+                        <div class="remote-hint-item" id="hint-mini-guide" title="Abrir Mini Guia de canais">
                             <span class="orb-dot orb-blue"></span>
-                            <span>Canal Aleatório</span>
+                            <span>Mini Guia</span>
                         </div>
                     </div>
                 </div>
@@ -224,6 +248,12 @@
                     Unable to retrieve television lineup. Check for anything obstructing your satellite dish such as tree branches, severe rain, or snow build-up. If safe to do so, remove the obstruction or wait for it to pass.
                 </div>
 
+                <!-- Barra de playlists do provedor + Favoritos -->
+                <div class="epg-playlist-bar" id="epg-playlist-bar">
+                    <button type="button" class="epg-playlist-chip active" data-playlist="all">TODOS OS CANAIS</button>
+                    <button type="button" class="epg-playlist-chip" data-playlist="favorites">FAVORITOS</button>
+                </div>
+
                 <!-- Main EPG Grid Container -->
                 <div class="epg-grid-container">
                     <!-- Timeline header -->
@@ -247,17 +277,17 @@
 
                 <!-- EPG Bottom Bar with Colored Navigation Orbs -->
                 <div class="epg-bottom-bar">
-                    <div class="epg-channels-filter" id="epg-channels-filter">Playlist: Canais Brasileiros</div>
+                    <div class="epg-channels-filter" id="epg-channels-filter">Playlist: Todos os Canais</div>
                     <div class="epg-bottom-hints">
-                        <div class="remote-hint-item" id="epg-hint-red" title="Pular canais para cima (Page Up)">
+                        <div class="remote-hint-item" id="epg-hint-red" title="Filmes e séries do provedor">
                             <span class="orb-dot orb-red"></span>
-                            <span>Pág ▲ (-4)</span>
+                            <span>Filmes &amp; Séries</span>
                         </div>
-                        <div class="remote-hint-item" id="epg-hint-green" title="Pular canais para baixo (Page Down)">
+                        <div class="remote-hint-item" id="epg-hint-green" title="Agendar programa selecionado">
                             <span class="orb-dot orb-green"></span>
-                            <span>Pág ▼ (+4)</span>
+                            <span>Agendar</span>
                         </div>
-                        <div class="remote-hint-item" id="epg-hint-yellow" title="Alternar Playlist (Brasil / EUA)">
+                        <div class="remote-hint-item" id="epg-hint-yellow" title="Alternar playlist">
                             <span class="orb-dot orb-yellow"></span>
                             <span id="epg-hint-yellow-text">Alternar Playlist</span>
                         </div>
@@ -308,7 +338,7 @@
                  OSD MEDIA STATUS POPUP (Play, Pause, Fast-forward, Rewind)
                  ======================================================== -->
             <div id="osd-media-badge" class="osd-media-badge hidden">
-                <span id="osd-media-icon" class="osd-media-icon">▶</span>
+                <span id="osd-media-icon" class="osd-media-icon">PLAY</span>
                 <span id="osd-media-text" class="osd-media-text">REPRODUZINDO</span>
             </div>
         </div>
@@ -431,108 +461,140 @@
         <!-- Actions -->
         <div class="modal-actions login-actions">
             <button type="button" class="btn-modal btn-modal-demo" id="btn-login-demo" title="Carregar canais abertos e públicos de teste">
-                📺 Testar Canais Demo
+                <img src="icons/tv.png" alt="" class="btn-inline-icon"> Testar Canais Demo
+            </button>
+            <button type="button" class="btn-modal btn-modal-test" id="btn-login-test" title="Verificar autenticação, canais, VOD e EPG">
+                Testar Conexão
             </button>
             <button type="button" class="btn-modal btn-modal-cancel hidden" id="btn-login-cancel">
                 Voltar à TV
             </button>
             <button type="button" class="btn-modal btn-modal-connect" id="btn-login-connect">
-                🛰️ Sintonizar Satélite
+                <img src="icons/antena.png" alt="" class="btn-inline-icon"> Sintonizar
             </button>
         </div>
     </div>
 
-    <!-- Custom IPTV / Video / YouTube URL Modal -->
-    <div id="modal-stream" class="modal-custom-stream">
-        <div class="modal-header">
-            <span class="modal-header-badge">LIVE / VOD</span>
-            <h3 style="color: #64b5f6; font-size: 20px; margin: 0;">Sintonizar Vídeo ou Stream</h3>
-        </div>
-        <p style="font-size: 13.5px; color: #bad7f5; margin: 0; line-height: 1.45;">
-            Insira o link de um vídeo do <strong>YouTube</strong>, stream <strong>IPTV (.m3u8)</strong> ou arquivo de vídeo direto <strong>(.mp4, .webm)</strong>:
-        </p>
-        <div class="modal-input-container">
-            <input type="text" id="stream-url-input" placeholder="Ex: https://www.youtube.com/watch?v=dQw4w9WgXcQ ou .mp4 / .m3u8" autocomplete="off">
-            <button id="btn-clear-stream" class="btn-clear-input" title="Limpar campo">✕</button>
-        </div>
-        <div class="modal-quick-suggestions">
-            <span class="quick-label">Sugestão de teste:</span>
-            <div class="quick-tags">
-                <button type="button" class="btn-quick-tag" data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ">Rick Astley - Never Gonna Give You Up (Rick Roll)</button>
-            </div>
-        </div>
-        <div class="modal-provider-switch-box">
-            <button type="button" class="btn-switch-provider" id="btn-open-login-settings">
-                🔄 Trocar Servidor IPTV / Configurar Conta (Logout)
-            </button>
-        </div>
-        <div class="modal-actions">
-            <button class="btn-modal btn-modal-cancel" id="btn-cancel-stream">Cancelar</button>
-            <button class="btn-modal btn-modal-load" id="btn-load-stream">Sintonizar na TV</button>
-        </div>
-    </div>
-
-    <!-- Playlist Selector Modal (Frutiger Aero 2000s Satellite Menu) -->
+    <!-- Playlist Selector Modal (playlists do fornecedor + favoritos) -->
     <div id="modal-playlist" class="modal-playlist-selector" role="dialog" aria-modal="true" aria-labelledby="modal-playlist-title">
         <div class="modal-header">
-            <span class="modal-header-badge">SATELLITE LINEUP</span>
+            <span class="modal-header-badge">PLAYLISTS DO PROVEDOR</span>
             <h3 id="modal-playlist-title" style="color: #64b5f6; font-size: 20px; margin: 0;">Alternar Playlist de Canais</h3>
         </div>
-        <p style="font-size: 13.5px; color: #bad7f5; margin: 0; line-height: 1.45;">
-            Selecione a lista de transmissão via satélite para exibir no Guia de Programação e na TV:
+        <p class="modal-description">
+            Selecione a playlist que deseja exibir na TV e no Guia de Programação:
         </p>
 
-        <div class="playlist-options-list">
-            <!-- Opção Brasil -->
-            <div class="playlist-card" data-playlist="br" id="playlist-opt-br" tabindex="0">
-                <div class="playlist-flag-bubble">
-                    <span class="playlist-flag-icon">BR</span>
-                </div>
-                <div class="playlist-card-content">
-                    <div class="playlist-card-title-row">
-                        <span class="playlist-title">Canais Brasileiros</span>
-                        <div class="playlist-card-badges">
-                            <span class="playlist-current-tag">● NO AR</span>
-                            <span class="playlist-action-badge">SINTONIZAR</span>
-                        </div>
-                    </div>
-                    <span class="playlist-desc">Transmissão ao vivo do Brasil • IPTV & EPG Nacional</span>
-                </div>
-            </div>
-
-            <!-- Opção EUA -->
-            <div class="playlist-card" data-playlist="us" id="playlist-opt-us" tabindex="0">
-                <div class="playlist-flag-bubble">
-                    <span class="playlist-flag-icon">US</span>
-                </div>
-                <div class="playlist-card-content">
-                    <div class="playlist-card-title-row">
-                        <span class="playlist-title">American Channels</span>
-                        <div class="playlist-card-badges">
-                            <span class="playlist-current-tag">● NO AR</span>
-                            <span class="playlist-action-badge">SINTONIZAR</span>
-                        </div>
-                    </div>
-                    <span class="playlist-desc">United States Live TV • News, Entertainment & Fast Streams</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="playlist-modal-quick-hint">
-            <span class="orb-dot orb-yellow"></span>
-            <span>Dica: Pressione o botão <strong>Amarelo</strong> ou use as setas ▲/▼ + <strong>OK</strong> para alternar.</span>
-        </div>
+        <div class="playlist-options-list" id="playlist-options-list"></div>
 
         <div class="modal-actions">
             <button class="btn-modal btn-modal-cancel" id="btn-cancel-playlist">Cancelar</button>
-            <button class="btn-modal btn-modal-load" id="btn-confirm-playlist">Sintonizar Playlist</button>
+            <button class="btn-modal btn-modal-load" id="btn-confirm-playlist">Aplicar Playlist</button>
+        </div>
+    </div>
+
+    <!-- VOD: Filmes e Séries do Provedor -->
+    <div id="modal-vod" class="modal-vod-screen" role="dialog" aria-modal="true" aria-labelledby="vod-title">
+        <div class="vod-header">
+            <div class="vod-header-brand">
+                <div class="vod-header-icon"><svg class="ui-icon"><use href="#icon-play"></use></svg></div>
+                <div>
+                    <span class="modal-header-badge">CATÁLOGO DO PROVEDOR</span>
+                    <h3 id="vod-title" class="vod-title">Filmes e Séries</h3>
+                </div>
+            </div>
+            <div class="vod-tabs" role="tablist">
+                <button type="button" class="vod-tab-btn active" data-vod-tab="movie">FILMES</button>
+                <button type="button" class="vod-tab-btn" data-vod-tab="series">SÉRIES</button>
+            </div>
+            <button type="button" class="btn-close-modal" id="btn-close-vod" title="Fechar">
+                <svg class="ui-icon"><use href="#icon-close"></use></svg>
+            </button>
+        </div>
+        <div class="vod-body">
+            <aside class="vod-categories" id="vod-categories"></aside>
+            <main class="vod-content">
+                <div id="vod-status" class="vod-status">Selecione uma categoria.</div>
+                <div id="vod-grid" class="vod-grid"></div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Configurações -->
+    <div id="modal-settings" class="modal-settings" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="settings-header">
+            <div>
+                <span class="modal-header-badge">CENTRAL DE CONFIGURAÇÕES</span>
+                <h3 id="settings-title" class="settings-title">Configurações</h3>
+            </div>
+            <button type="button" class="btn-close-modal" id="btn-close-settings" title="Fechar">
+                <svg class="ui-icon"><use href="#icon-close"></use></svg>
+            </button>
+        </div>
+
+        <div class="settings-tabs" role="tablist">
+            <button type="button" class="settings-tab-btn active" data-settings-tab="account">CONTA</button>
+            <button type="button" class="settings-tab-btn" data-settings-tab="playback">REPRODUÇÃO</button>
+            <button type="button" class="settings-tab-btn" data-settings-tab="remote">CONTROLE REMOTO</button>
+            <button type="button" class="settings-tab-btn" data-settings-tab="reminders">LEMBRETES</button>
+        </div>
+
+        <div class="settings-panels">
+            <section class="settings-panel active" id="settings-panel-account">
+                <div class="settings-info" id="settings-account-info">Nenhum provedor conectado.</div>
+                <div class="settings-actions">
+                    <button type="button" class="btn-modal btn-modal-load" id="btn-settings-change-provider">Trocar Provedor / Reconectar</button>
+                    <button type="button" class="btn-modal btn-modal-cancel" id="btn-settings-logout">Remover Conta</button>
+                </div>
+            </section>
+
+            <section class="settings-panel" id="settings-panel-playback">
+                <label class="settings-check-row">
+                    <input type="checkbox" id="settings-crt">
+                    <span>Ativar filtro CRT (scanlines e fósforo)</span>
+                </label>
+                <p class="settings-help">O filtro CRT começa desligado no primeiro uso. A escolha fica salva para as próximas vezes.</p>
+            </section>
+
+            <section class="settings-panel" id="settings-panel-remote">
+                <div class="settings-actions">
+                    <button type="button" class="btn-modal btn-modal-load" id="btn-remote-test">Testar Botões</button>
+                    <button type="button" class="btn-modal btn-modal-cancel" id="btn-remote-reset">Restaurar Padrão</button>
+                </div>
+                <div class="remote-test-status" id="remote-test-status">Pressione "Testar Botões" e depois use o controle remoto.</div>
+                <div class="settings-remote-list" id="settings-remote-list"></div>
+            </section>
+
+            <section class="settings-panel" id="settings-panel-reminders">
+                <div class="settings-reminders-list" id="settings-reminders-list"></div>
+                <div class="settings-actions">
+                    <button type="button" class="btn-modal btn-modal-cancel" id="btn-clear-reminders">Limpar Lembretes</button>
+                </div>
+                <p class="settings-help">Os lembretes aparecem como popup enquanto o aplicativo estiver aberto.</p>
+            </section>
+        </div>
+    </div>
+
+    <!-- Popup de lembrete de programa -->
+    <div id="reminder-popup" class="reminder-popup hidden" role="dialog" aria-modal="true" aria-labelledby="reminder-title">
+        <div class="reminder-card">
+            <div class="reminder-icon"><svg class="ui-icon"><use href="#icon-star"></use></svg></div>
+            <div class="reminder-content">
+                <span class="modal-header-badge">LEMBRETE DE PROGRAMAÇÃO</span>
+                <h3 id="reminder-title" class="reminder-title">Programa</h3>
+                <p id="reminder-channel" class="reminder-channel">Canal</p>
+                <p id="reminder-time" class="reminder-time">--:--</p>
+            </div>
+            <div class="reminder-actions">
+                <button type="button" class="btn-modal btn-modal-load" id="reminder-watch">Assistir Agora</button>
+                <button type="button" class="btn-modal btn-modal-cancel" id="reminder-dismiss">Agora Não</button>
+            </div>
         </div>
     </div>
 
     <!-- Scripts -->
-    <script src="https://www.youtube.com/iframe_api"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <script src="audio.js"></script>
+    <script src="storage.js"></script>
     <script src="channels.js"></script>
     <script src="app.js"></script>
 </body>

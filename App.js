@@ -56,46 +56,7 @@ export default function App() {
     }
   };
 
-  // 3. Android TV Real Remote Control Handler (D-Pad, Select, Colors, Play/Pause)
-  const useTVEventHandler = React.useTVEventHandler || (Platform.isTV ? null : null);
-  if (typeof useTVEventHandler === 'function') {
-    useTVEventHandler((evt) => {
-      if (!evt || !evt.eventType) return;
-      const type = evt.eventType;
-
-      switch (type) {
-        case 'up':
-          sendRemoteKey('up', 19);
-          break;
-        case 'down':
-          sendRemoteKey('down', 20);
-          break;
-        case 'left':
-          sendRemoteKey('left', 21);
-          break;
-        case 'right':
-          sendRemoteKey('right', 22);
-          break;
-        case 'select':
-          sendRemoteKey('select', 23);
-          break;
-        case 'playPause':
-          sendRemoteKey('playpause', 85);
-          break;
-        case 'rewind':
-          sendRemoteKey('rewind', 89);
-          break;
-        case 'fastForward':
-          sendRemoteKey('fastforward', 90);
-          break;
-        default:
-          sendRemoteKey(type, 0);
-          break;
-      }
-    });
-  }
-
-  // 4. Android Hardware Back Button Handler
+  // 3. Android Hardware Back Button Handler
   useEffect(() => {
     const onBackPress = () => {
       sendRemoteKey('back', 4);
@@ -106,14 +67,54 @@ export default function App() {
     return () => backHandler.remove();
   }, []);
 
-  // 5. Handle messages from WebView (e.g. exit, native toast)
-  const handleWebViewMessage = (event) => {
+  // 5. Handle messages from WebView (HTTP bridge, exit, etc.)
+  const handleWebViewMessage = async (event) => {
+    let data;
     try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === 'EXIT_APP') {
-        BackHandler.exitApp();
+      data = JSON.parse(event.nativeEvent.data);
+    } catch (e) {
+      return;
+    }
+    if (!data || !data.type) return;
+
+    if (data.type === 'EXIT_APP') {
+      BackHandler.exitApp();
+      return;
+    }
+
+    // Ponte HTTP nativa: evita CORS e permite HTTP simples (IPTV/Xtream/M3U/XMLTV)
+    if (data.type === 'HTTP_REQUEST') {
+      const requestId = data.id;
+      try {
+        const response = await fetch(data.url, {
+          method: data.method || 'GET',
+          headers: data.headers || {},
+        });
+        const body = await response.text();
+        const headers = {};
+        response.headers.forEach((value, key) => {
+          headers[key] = value;
+        });
+        webViewRef.current?.postMessage(
+          JSON.stringify({
+            type: 'HTTP_RESPONSE',
+            id: requestId,
+            ok: response.ok,
+            status: response.status,
+            headers,
+            body,
+          })
+        );
+      } catch (err) {
+        webViewRef.current?.postMessage(
+          JSON.stringify({
+            type: 'HTTP_RESPONSE',
+            id: requestId,
+            error: (err && err.message) || 'Falha de rede ao conectar no provedor.',
+          })
+        );
       }
-    } catch (e) {}
+    }
   };
 
   return (
@@ -135,6 +136,7 @@ export default function App() {
         mixedContentMode="always"
         androidHardwareAccelerationDisabled={false}
         allowsFullscreenVideo={true}
+        focusable={true}
         scalesPageToFit={true}
         scrollEnabled={false}
         overScrollMode="never"

@@ -4,7 +4,6 @@ const path = require('path');
 const webDir = path.join(__dirname, 'web');
 const iconsDir = path.join(webDir, 'icons');
 
-// Read used icons as base64
 const usedIconNames = [
     'antena.png',
     'aquanet-nosignal-1.png',
@@ -13,7 +12,9 @@ const usedIconNames = [
     'volume-med.png',
     'volume-min.png',
     'volume-zero.png',
-    'tv.png'
+    'tv.png',
+    'power-pressed.png',
+    'power-unpressed.png'
 ];
 
 const icons = {};
@@ -25,71 +26,54 @@ for (const file of usedIconNames) {
     }
 }
 
-// Read web assets
-let html = fs.readFileSync(path.join(webDir, 'index.html'), 'utf-8');
-const css = fs.readFileSync(path.join(webDir, 'style.css'), 'utf-8');
-const audioJs = fs.readFileSync(path.join(webDir, 'audio.js'), 'utf-8');
-const channelsJs = fs.readFileSync(path.join(webDir, 'channels.js'), 'utf-8');
-const appJs = fs.readFileSync(path.join(webDir, 'app.js'), 'utf-8');
-
-// Clean up any remaining references to aquanet-nosignal.png
-html = html.split('aquanet-nosignal.png').join('aquanet-nosignal-1.png');
-
-// Replace icon references with base64
-for (const [name, dataUri] of Object.entries(icons)) {
-    // Replace "icons/name" or 'icons/name'
-    html = html.split(`icons/${name}`).join(dataUri);
+function inlineIcons(text) {
+    let out = text.split('icons/aquanet-nosignal.png').join('icons/aquanet-nosignal-1.png');
+    for (const [name, dataUri] of Object.entries(icons)) {
+        out = out.split(`icons/${name}`).join(dataUri);
+    }
+    return out;
 }
 
-// Inline CSS
-html = html.replace('<link rel="stylesheet" href="style.css">', `<style>\n${css}\n</style>`);
-
-// Inline JS scripts (keep external cdn scripts intact)
-const scriptsToInline = `
-<script>
-// Base64 icon map for JS runtime access
-window.__AQUANET_ICONS = ${JSON.stringify(icons)};
-// Overwrite icon references in runtime
-(function() {
-    const origImage = window.Image;
-})();
-\n${audioJs}\n
-\n${channelsJs}\n
-\n${appJs}\n
-</script>
-`;
+let html = fs.readFileSync(path.join(webDir, 'index.html'), 'utf-8');
+html = inlineIcons(html);
 
 html = html.replace(
-    /<script src="audio\.js"><\/script>\s*<script src="channels\.js"><\/script>\s*<script src="app\.js"><\/script>/,
-    scriptsToInline
+    '<link rel="stylesheet" href="style.css">',
+    `<style>\n${fs.readFileSync(path.join(webDir, 'style.css'), 'utf-8')}\n</style>`
 );
 
-// Icon paths are accessed via window.__AQUANET_ICONS or already replaced in HTML tags
+// Injeta o mapa de ícones antes de qualquer script local.
+const iconMapScript = `<script>window.__AQUANET_ICONS = ${JSON.stringify(icons)};window.aquanetAsset = function (name) { return (window.__AQUANET_ICONS && window.__AQUANET_ICONS[name]) || ('icons/' + name); };</script>`;
+html = html.replace('</head>', `${iconMapScript}\n</head>`);
 
-// Export bundledHtml.js
+// Inline o hls.js local (se instalado) para funcionar offline no APK.
+const hlsPath = path.join(__dirname, 'node_modules', 'hls.js', 'dist', 'hls.min.js');
+if (fs.existsSync(hlsPath)) {
+    const hlsCode = fs.readFileSync(hlsPath, 'utf-8');
+    html = html.replace(
+        /<script src="https:\/\/cdn\.jsdelivr\.net\/npm\/hls\.js@latest"><\/script>/,
+        `<script>\n${hlsCode}\n</script>`
+    );
+} else {
+    console.warn('[bundle-web] hls.js local nao encontrado; mantendo CDN.');
+}
+
+// Inline todos os scripts locais na ordem em que aparecem.
+html = html.replace(/<script src="([^"]+)"><\/script>/g, (match, src) => {
+    if (/^https?:\/\//i.test(src)) return match;
+    const filePath = path.join(webDir, src);
+    if (!fs.existsSync(filePath)) {
+        console.warn('[bundle-web] Script não encontrado:', src);
+        return match;
+    }
+    const code = inlineIcons(fs.readFileSync(filePath, 'utf-8'));
+    return `<script>\n${code}\n</script>`;
+});
+
 const bundledJsContent = `// Auto-generated bundled HTML for React Native WebView
 export const BUNDLED_HTML = ${JSON.stringify(html)};
 export default BUNDLED_HTML;
 `;
 
 fs.writeFileSync(path.join(__dirname, 'bundledHtml.js'), bundledJsContent, 'utf-8');
-console.log('Successfully generated bundledHtml.js! Size:', Math.round(bundledJsContent.length / 1024), 'KB');
-
-// Also copy web directory to assets/web for Android WebView file:// access
-const assetsWebDir = path.join(__dirname, 'assets', 'web');
-fs.mkdirSync(assetsWebDir, { recursive: true });
-const copyRecursive = (src, dest) => {
-    const entries = fs.readdirSync(src, { withFileTypes: true });
-    for (const entry of entries) {
-        const srcPath = path.join(src, entry.name);
-        const destPath = path.join(dest, entry.name);
-        if (entry.isDirectory()) {
-            fs.mkdirSync(destPath, { recursive: true });
-            copyRecursive(srcPath, destPath);
-        } else {
-            fs.copyFileSync(srcPath, destPath);
-        }
-    }
-};
-copyRecursive(webDir, assetsWebDir);
-console.log('Successfully copied assets to assets/web!');
+console.log('bundledHtml.js gerado. Tamanho:', Math.round(bundledJsContent.length / 1024), 'KB');
